@@ -8,6 +8,8 @@ import configparser
 import requests
 from shapely.geometry import Point
 
+refresh_days = 1
+
 config = configparser.ConfigParser()
 config.read("settings.cfg")
 
@@ -188,7 +190,7 @@ for item in radio_mh_list:
         write_cursor.execute(f"INSERT INTO packet_mh.operators (call, lastheard, geom) VALUES ('{op_call}', '{timestamp}', st_setsrid('{point}'::geometry, 4326))")
         current_op_list.append(op_call)
 
-    elif timedelta.days >= 3 and op_call not in current_op_list:
+    elif timedelta.days >= refresh_days and op_call not in current_op_list:
         # add coordinates & grid
         info = get_info(call.split('-')[0])
 
@@ -225,7 +227,7 @@ for digipeater in digipeater_list.items():
 
             write_cursor.execute(f"INSERT INTO packet_mh.digipeaters (call, lastheard, grid, geom) VALUES ('{digipeater_call}', '{timestamp}', '{grid}', st_setsrid('{point}'::geometry, 4326))")
 
-    elif timedelta.days >= 3:
+    elif timedelta.days >= refresh_days:
         if (lat, lon) != existing_digipeaters_data.get(digipeater_call):
             print(f"Updating digipeater coordinates for {digipeater}")
             update_digi_query = f"UPDATE packet_mh.operators SET geom = {point} WHERE call = {digipeater_call};"
