@@ -6,6 +6,7 @@ import psycopg2
 import datetime
 import configparser
 import requests
+from shapely.geometry import Point
 
 config = configparser.ConfigParser()
 config.read("settings.cfg")
@@ -28,15 +29,25 @@ def get_info(callsign):
     :return: call & lat/long
     """
 
-    callsign = re.sub(r'[^\w]', ' ', callsign)
-    print(f"Getting info for {callsign}")
+    lat = None
+    lon = None
+    grid = None
 
-    req = f"http://api.hamdb.org/{callsign}/json/mh-stats"
-    http_results = requests.get(req).json()
+    if callsign:
+        callsign = re.sub(r'[^\w]', ' ', callsign)
 
-    lat = http_results['hamdb']['callsign']['lat']
-    lon = http_results['hamdb']['callsign']['lon']
-    grid = http_results['hamdb']['callsign']['grid']
+        req = f"http://api.hamdb.org/{callsign}/json/mh-stats"
+        http_results = requests.get(req).json()
+
+        lat = http_results['hamdb']['callsign']['lat']
+        lon = http_results['hamdb']['callsign']['lon']
+        grid = http_results['hamdb']['callsign']['grid']
+
+    else:
+        return None
+
+    if lat == "NOT_FOUND" or lon == "NOT_FOUND" or grid == "NOT_FOUND":
+        return None
 
     return (lat, lon, grid)
 
@@ -79,7 +90,7 @@ for index, item in enumerate(output):
     if len(item) == 1:
         del output[index]
 
-results = []
+radio_mh_list = []
 for item in output:
     res = []
 
@@ -96,67 +107,129 @@ for item in output:
     except IndexError:
         res.append(None)
 
-    results.append(res)
-
-"""
-# Turn into dict
-received_dict = {}
-
-for index_1, data in enumerate(output):
-    print(data)
-    call = data[0]
-    timestamp = data[1]
-    digipeaters = []
-
-    #print(data)
-    # try digipeaters
-    for index_2, entry in enumerate(data):
-        if index_2 > 2:
-            print(index_2)
-            digipeaters.append(entry[index_2])
-
-    received_dict[call] = (timestamp, digipeaters)
-
-"""
+    radio_mh_list.append(res)
 
 # Write to PG, first get existing data to check for duplicates
-cur = con.cursor()
-cur.execute("SELECT * FROM packet_mh.mh_list")
-existing_rows = cur.fetchall()
+read_mh = con.cursor()
+read_mh.execute("SELECT * FROM packet_mh.mh_list")
+existing_mh = read_mh.fetchall()
 
-existing_data = []
-for row in existing_rows:
+existing_mh_data = []
+for row in existing_mh:
     call = row[2]
     timestamp = row[1]
     hms = timestamp.strftime("%H:%M:%S")
-    existing_data.append(f"{call} {hms}")
+    existing_mh_data.append(f"{call} {hms}")
 
-results = sorted(results, key=lambda x: x[1], reverse=False)
+radio_mh_list = sorted(radio_mh_list, key=lambda x: x[1], reverse=False)
 
-cur = con.cursor()
-for item in results:
+read_operators = con.cursor()
+read_operators.execute("SELECT id, call, ST_X(geom), ST_Y(geom) FROM packet_mh.operators")
+existing_ops = read_operators.fetchall()
+
+existing_ops_data = {}
+for op in existing_ops:
+    call = op[1]
+    lon = op[2]
+    lat = op[3]
+    existing_ops_data[call] = (lat, lon)
+
+read_digipeaters = con.cursor()
+read_digipeaters.execute("SELECT call, ST_X(geom), ST_Y(geom) FROM packet_mh.digipeaters")
+existing_digipeaters = read_digipeaters.fetchall()
+
+existing_digipeaters_data = {}
+for digipeater in existing_digipeaters:
+    call = digipeater[0]
+    lon = digipeater[1]
+    lat = digipeater[2]
+    existing_digipeaters_data[call] = (lat, lon)
+
+# Write to PG
+digipeater_list = {}
+current_op_list = []
+write_cursor = con.cursor()
+for item in radio_mh_list:
     call = item[0]
+    op_call = call.split('-')[0]
     timestamp = item[1]
+    timedelta = now - timestamp
     hms = timestamp.strftime("%H:%M:%S")
     lat = None
     lon = None
+    point = None
     grid = None
 
     digipeaters = ""
     try:
         for digipeater in item[2]:
             digipeaters += f"{digipeater},"
+            digipeater_list[digipeater] = timestamp
     except TypeError:
         digipeaters = None
 
-    if f"{call} {hms}" not in existing_data:
+    # Write MH table
+    if f"{call} {hms}" not in existing_mh_data:
+        print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
+        write_cursor.execute(f"INSERT INTO packet_mh.mh_list (timestamp,call,digipeaters,op_call) VALUES ('{timestamp}','{call}','{digipeaters}', '{op_call}')")
+
+    # Write Ops table if
+    if op_call not in existing_ops_data and op_call not in current_op_list:
         # add coordinates & grid
         info = get_info(call.split('-')[0])
-        lat = info[0]
-        lon = info[1]
-        grid = info[2]
 
-        print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
-        cur.execute(f"INSERT INTO packet_mh.mh_list (timestamp,call,digipeaters, lat, lon, grid) VALUES ('{timestamp}','{call}','{digipeaters}','{lat}','{lon}','{grid}')")
+        if info:
+            lat = float(info[0])
+            lon = float(info[1])
+            point = Point(lon, lat).wkb_hex
+            grid = info[2]
+
+        print(f"{now} Adding {op_call} to operator table.")
+        write_cursor.execute(f"INSERT INTO packet_mh.operators (call, lastheard, geom) VALUES ('{op_call}', '{timestamp}', st_setsrid('{point}'::geometry, 4326))")
+        current_op_list.append(op_call)
+
+    elif timedelta.days >= 3 and op_call not in current_op_list:
+        # add coordinates & grid
+        info = get_info(call.split('-')[0])
+
+        if info:
+            lat = float(info[0])
+            lon = float(info[1])
+            point = Point(lon, lat).wkb_hex
+            grid = info[2]
+
+        if (lat, lon) != existing_ops_data.get(call):
+            print(f"Updating coordinates for {op_call}")
+            update_op_query = f"UPDATE packet_mh.operators SET geom = {point} WHERE call = {op_call};"
+            write_cursor.execute(update_op_query)
+
+        current_op_list.append(op_call)
+
+# Write digipeaters table
+for digipeater in digipeater_list.items():
+    lat = None
+    lon = None
+    digipeater_call = digipeater[0]
+    timestamp = digipeater[1]
+    timedelta = (now - timestamp)
+
+    if digipeater_call not in existing_digipeaters_data:
+        digipeater_info = get_info(digipeater_call.split('-')[0])
+
+        if digipeater_info:
+            print(f"Adding digipeater {digipeater_call}")
+            lat = float(digipeater_info[0])
+            lon = float(digipeater_info[1])
+            point = Point(lon, lat).wkb_hex
+            grid = digipeater_info[2]
+
+            write_cursor.execute(f"INSERT INTO packet_mh.digipeaters (call, lastheard, grid, geom) VALUES ('{digipeater_call}', '{timestamp}', '{grid}', st_setsrid('{point}'::geometry, 4326))")
+
+    elif timedelta.days >= 3:
+        if (lat, lon) != existing_digipeaters_data.get(digipeater_call):
+            print(f"Updating digipeater coordinates for {digipeater}")
+            update_digi_query = f"UPDATE packet_mh.operators SET geom = {point} WHERE call = {digipeater_call};"
+            write_cursor.execute(update_digi_query)
+
 con.commit()
 con.close()
