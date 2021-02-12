@@ -5,6 +5,7 @@ import re
 import psycopg2
 import datetime
 import configparser
+import requests
 
 config = configparser.ConfigParser()
 config.read("settings.cfg")
@@ -18,6 +19,27 @@ pg_pw = config['postgres']['password']
 pg_host = config['postgres']['host']
 pg_db = config['postgres']['db']
 pg_port = config['postgres']['port']
+
+
+def get_info(callsign):
+    """
+    Get info from hamdb
+    :param callsign: Callsign string
+    :return: call & lat/long
+    """
+
+    callsign = re.sub(r'[^\w]', ' ', callsign)
+    print(f"Getting info for {callsign}")
+
+    req = f"http://api.hamdb.org/{callsign}/json/mh-stats"
+    http_results = requests.get(req).json()
+
+    lat = http_results['hamdb']['callsign']['lat']
+    lon = http_results['hamdb']['callsign']['lon']
+    grid = http_results['hamdb']['callsign']['grid']
+
+    return (lat, lon, grid)
+
 
 # Connect to PG
 con = psycopg2.connect(database=pg_db, user=pg_user,
@@ -57,12 +79,12 @@ for index, item in enumerate(output):
     if len(item) == 1:
         del output[index]
 
-#print(output)
 results = []
 for item in output:
     res = []
 
-    res.append(item[0].decode('utf-8'))
+    call = item[0].decode('utf-8')
+    res.append(call)
     month = item[1].decode('utf-8')
     day = item[2].decode('utf-8')
     time = item[3].decode('utf-8')
@@ -116,6 +138,9 @@ for item in results:
     call = item[0]
     timestamp = item[1]
     hms = timestamp.strftime("%H:%M:%S")
+    lat = None
+    lon = None
+    grid = None
 
     digipeaters = ""
     try:
@@ -125,7 +150,13 @@ for item in results:
         digipeaters = None
 
     if f"{call} {hms}" not in existing_data:
+        # add coordinates & grid
+        info = get_info(call.split('-')[0])
+        lat = info[0]
+        lon = info[1]
+        grid = info[2]
+
         print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
-        cur.execute(f"INSERT INTO packet_mh.mh_list (timestamp,call,digipeaters) VALUES ('{timestamp}','{call}','{digipeaters}')")
+        cur.execute(f"INSERT INTO packet_mh.mh_list (timestamp,call,digipeaters, lat, lon, grid) VALUES ('{timestamp}','{call}','{digipeaters}','{lat}','{lon}','{grid}')")
 con.commit()
 con.close()
