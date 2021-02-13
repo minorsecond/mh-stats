@@ -223,6 +223,8 @@ for digipeater in digipeater_list.items():
     if '*' in digipeater_call:
         heard = True
 
+    digipeater_call = re.sub(r'[^\w]', ' ', digipeater_call)
+
     if digipeater_call not in existing_digipeaters_data:
         digipeater_info = get_info(digipeater_call.split('-')[0])
 
