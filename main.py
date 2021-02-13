@@ -175,6 +175,10 @@ for item in radio_mh_list:
         print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
         write_cursor.execute(f"INSERT INTO packet_mh.mh_list (timestamp,call,digipeaters,op_call) VALUES ('{timestamp}','{call}','{digipeaters}', '{op_call}')")
 
+    # Update ops last heard
+    update_op_query = f"UPDATE packet_mh.operators SET lastheard = '{timestamp}' WHERE call = '{op_call}';"
+    write_cursor.execute(update_op_query)
+
     # Write Ops table if
     if op_call not in existing_ops_data and op_call not in current_op_list:
         # add coordinates & grid
@@ -200,9 +204,9 @@ for item in radio_mh_list:
             point = Point(lon, lat).wkb_hex
             grid = info[2]
 
-        if (lat, lon) != existing_ops_data.get(call):
+        if (lat, lon, grid) != existing_ops_data.get(call):
             print(f"Updating coordinates for {op_call}")
-            update_op_query = f"UPDATE packet_mh.operators SET geom = {point} WHERE call = {op_call};"
+            update_op_query = f"UPDATE packet_mh.operators SET geom = st_setsrid('{point}'::geometry, 4326) WHERE call = '{op_call}';"
             write_cursor.execute(update_op_query)
 
         current_op_list.append(op_call)
@@ -214,6 +218,10 @@ for digipeater in digipeater_list.items():
     digipeater_call = digipeater[0]
     timestamp = digipeater[1]
     timedelta = (now - timestamp)
+    heard = False
+
+    if '*' in digipeater_call:
+        heard = True
 
     if digipeater_call not in existing_digipeaters_data:
         digipeater_info = get_info(digipeater_call.split('-')[0])
@@ -225,13 +233,17 @@ for digipeater in digipeater_list.items():
             point = Point(lon, lat).wkb_hex
             grid = digipeater_info[2]
 
-            write_cursor.execute(f"INSERT INTO packet_mh.digipeaters (call, lastheard, grid, geom) VALUES ('{digipeater_call}', '{timestamp}', '{grid}', st_setsrid('{point}'::geometry, 4326))")
+            write_cursor.execute(f"INSERT INTO packet_mh.digipeaters (call, lastheard, grid, geom, heard) VALUES ('{digipeater_call}', '{timestamp}', '{grid}', st_setsrid('{point}'::geometry, 4326), '{heard}')")
 
     elif timedelta.days >= refresh_days:
-        if (lat, lon) != existing_digipeaters_data.get(digipeater_call):
+        if (lat, lon, grid) != existing_digipeaters_data.get(digipeater_call):
             print(f"Updating digipeater coordinates for {digipeater}")
-            update_digi_query = f"UPDATE packet_mh.operators SET geom = {point} WHERE call = {digipeater_call};"
+            update_digi_query = f"UPDATE packet_mh.operators SET geom = st_setsrid('{point}'::geometry, 4326) WHERE call = '{digipeater_call}';"
             write_cursor.execute(update_digi_query)
+
+    # Update timestamp
+    update_digi_query = f"UPDATE packet_mh.digipeaters SET lastheard = '{timestamp}' WHERE call = '{digipeater_call}';"
+    write_cursor.execute(update_digi_query)
 
 con.commit()
 con.close()
