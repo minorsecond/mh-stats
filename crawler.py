@@ -32,13 +32,14 @@ con = psycopg2.connect(database=pg_db, user=pg_user,
 now = datetime.datetime.now().replace(microsecond=0)
 year = datetime.date.today().year
 
-read_mh = con.cursor()
-read_mh.execute("SELECT call FROM packet_mh.mh_list")
-existing_ops = read_mh.fetchall()
+read_first_order_node_cursor = con.cursor()
+read_first_order_node_cursor.execute('SELECT call, last_check FROM '
+                               'packet_mh.nodes WHERE level=1')
+first_order_results = read_first_order_node_cursor.fetchall()
 
-first_order_ops = []
-for existing_op in existing_ops:
-    first_order_ops.append(existing_op[0].strip())
+first_order_nodes = {}
+for node in first_order_results:
+    first_order_nodes[node[0].strip()] = node[1]
 
 # Connect to local telnet server
 tn = Telnet(telnet_ip, telnet_port, timeout=5)
@@ -48,13 +49,13 @@ tn.read_until(b"password:", timeout=2)
 tn.write(telnet_pw.encode('ascii') + b"\r")
 tn.read_until(b"Connected", timeout=2)
 tn.write("n".encode('ascii') + b"\r")
-tn.write(b"\r")
+tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
 tn.write(b"bye\r")
 
 print(f"Connected to {telnet_ip}")
 
 calls = []
-output = tn.read_all()
+output = tn.read_until(b'***')
 output = output.split(b"Nodes")[1].strip()
 output = output.split(b'***')[0]
 output = re.sub(b' +', b' ', output)
@@ -63,32 +64,127 @@ output = output.split(b'\r\n')
 for row in output:
     calls.extend(row.split(b' '))
 
-cleaned_calls = []
-for call in calls:
-    if b':' in call:
-        call = call.split(b':')[1]
-    cleaned_calls.append(call)
 
-while(b"" in cleaned_calls):
-    cleaned_calls.remove(b"")
+def clean_calls(call_list):
+    """
+    Cleans output from telnet, removing : and whitespaces
+    """
 
-full_info = {}
+    cleaned_calls = []
+    for call in calls:
+        if b':' in call:
+            call = call.split(b':')[1]
+        cleaned_calls.append(call)
+
+    while(b"" in cleaned_calls):
+        cleaned_calls.remove(b"")
+
+    return cleaned_calls
+
+
 processed_calls = []
-for call in cleaned_calls:
+bad_geocode_calls = []
+added_counter = 0
+updated_counter = 0
+
+write_first_order_nodes = con.cursor()
+write_bad_geocodes = con.cursor()
+for call in clean_calls(calls):
+    point = None
     call = call.decode('utf-8')
     base_call = re.sub(r'[^\w]', ' ', call.split('-')[0])
     if base_call not in processed_calls:
-        print(f"Getting info for {base_call}")
-
         if '-' in call:
             ssid = re.sub(r'[^\w]', ' ', call.split('-')[1])
         else:
             ssid = None
 
-        coords = get_info(base_call)
+        last_checked = first_order_nodes.get(base_call)
 
-        full_info[base_call] = (base_call, now, coords, ssid)
+        # Add new node
+        if base_call not in first_order_nodes:
+            print(f"Attempting to add node {base_call}")
+            info = get_info(base_call)
+            parent_call = base_call
+            last_check = now
+            order = 1
+            path = parent_call
+
+            if info:
+                try:
+                    lat = float(info[0])
+                    lon = float(info[1])
+                    grid = info[2]
+                    point = Point(lon, lat).wkb_hex
+                    added_counter += 1
+                except ValueError:
+                    print(f"Error getting coordinates for {base_call}")
+                    point = None
+
+            if point:
+                write_first_order_nodes.execute(f"INSERT INTO packet_mh.nodes "
+                                                f"(call, parent_call, last_check, "
+                                                f"geom, ssid, path, level, grid) VALUES "
+                                                f"(%s, %s, %s, "
+                                                f"st_setsrid('{point}'::geometry, 4326), "
+                                                f"%s, %s, %s, %s)", (
+                                                base_call, parent_call, last_check,
+                                                ssid, path, order, grid))
+            else:
+                print(f"Couldn't get coords for {base_call}. Adding to bad_geocodes table.")
+                if base_call not in bad_geocode_calls:
+                    write_bad_geocodes.execute(f"INSERT INTO packet_mh.bad_geocodes"
+                                               f"(call, last_checked, reason) "
+                                               f"VALUES (%s, %s, %s)",
+                                               (base_call, now, 'Bad Add'))
+                    bad_geocode_calls.append(base_call)
+        elif last_checked and (now - last_checked).days >= 14 or not last_checked:
+            print(f"Updating node {base_call}")
+            info = get_info(base_call)
+            parent_call = base_call
+            last_check = now
+            order = 1
+            path = parent_call
+
+            if info:
+                try:
+                    lat = float(info[0])
+                    lon = float(info[1])
+                    point = Point(lon, lat).wkb_hex
+                    updated_counter += 1
+                except ValueError:
+                    print(f"Error getting coordinates for {base_call}")
+                    point = None
+
+            if point:
+                update_fon = f"UPDATE packet_mh.nodes SET geom = " \
+                             f"st_setsrid('{point}'::geometry, 4326), " \
+                             f"last_check=now() WHERE call = '{base_call}';"
+                write_first_order_nodes.execute(update_fon)
+
+            else:
+                if base_call not in bad_geocode_calls:
+                    write_bad_geocodes.execute(
+                        f"INSERT INTO packet_mh.bad_geocodes"
+                        f"(call, last_checked, reason) VALUES (%s, %s, %s)",
+                        (base_call, now, 'Bad Update'))
+                    bad_geocode_calls.append(base_call)
         processed_calls.append(base_call)
 
-print(full_info)
+if processed_calls == 0:
+    print("No nodes added")
+else:
+    print(f"Added {len(processed_calls)} nodes")
 
+if updated_counter == 0:
+    print("No nodes updated")
+else:
+    print(f"Updated {updated_counter} nodes")
+
+if len(bad_geocode_calls) == 0:
+    print("No errors encountered")
+else:
+    print(f"{len(bad_geocode_calls)} errors encountered")
+
+con.commit()
+con.close()
