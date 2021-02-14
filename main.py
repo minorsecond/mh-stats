@@ -1,3 +1,4 @@
+#!/bin/python3
 # Save MH data to PostgreSQL database
 
 from telnetlib import Telnet
