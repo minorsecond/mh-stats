@@ -101,7 +101,11 @@ write_first_order_nodes = con.cursor()
 write_bad_geocodes = con.cursor()
 clean_call_list = clean_calls(calls)
 print(f"{len(first_order_nodes)} exist in DB")
-print(f"Processing {len(clean_call_list)} records to add")
+
+data_size = len(set([re.sub(r'[^\w]', ' ', call.decode('utf-8').
+                            split('-')[0]) for call in clean_call_list]))
+
+print(f"Processing {data_size} records to add")
 
 for call in clean_call_list:
     point = None
