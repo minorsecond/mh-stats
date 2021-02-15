@@ -99,7 +99,11 @@ updated_counter = 0
 
 write_first_order_nodes = con.cursor()
 write_bad_geocodes = con.cursor()
-for call in clean_calls(calls):
+clean_call_list = clean_calls(calls)
+print(f"{len(first_order_nodes)} exist in DB")
+print(f"Processing {len(clean_call_list)} records to add")
+
+for call in clean_call_list:
     point = None
     grid = None
     call = call.decode('utf-8')
@@ -110,12 +114,12 @@ for call in clean_calls(calls):
         else:
             ssid = None
 
-        last_checked = first_order_nodes.get(base_call)
         # Add new node
         if base_call not in first_order_nodes:
             print(f"Attempting to add node {base_call}")
-
-            if last_checked and (last_checked - now).days >= 14:
+            last_checked = first_order_nodes.get(base_call)
+            if last_checked and (
+                    last_checked - now).days >= 14 or not last_checked:
                 info = get_info(base_call)
                 parent_call = base_call
                 last_check = now
@@ -165,7 +169,7 @@ for call in clean_calls(calls):
                             f"Repeated failure geocoding node {base_call}. Updating last checked time.")
                         bad_geocode_update_query = f"UPDATE packet_mh.bad_geocodes SET last_checked=now() WHERE call = '{base_call}';"
                         write_bad_geocodes.execute(bad_geocode_update_query)
-                processed_calls.append(base_call)
+        processed_calls.append(base_call)
 
 if processed_calls == 0:
     print("No nodes added")
