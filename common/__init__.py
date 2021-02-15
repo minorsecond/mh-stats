@@ -1,6 +1,31 @@
+import configparser
 import re
 
 import requests
+
+
+def get_conf():
+    """
+    Get config data
+    :return: Dict of config options
+    """
+
+    config = configparser.ConfigParser()
+    config.read("settings.cfg")
+
+    config_options = {
+        'telnet_user': config['telnet']['username'],
+        'telnet_pw': config['telnet']['password'],
+        'telnet_ip': config['telnet']['ip'],
+        'telnet_port': config['telnet']['port'],
+        'pg_user': config['postgres']['username'],
+        'pg_pw': config['postgres']['password'],
+        'pg_host': config['postgres']['host'],
+        'pg_db': config['postgres']['db'],
+        'pg_port': config['postgres']['port']
+    }
+
+    return config_options
 
 
 def get_info(callsign):

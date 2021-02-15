@@ -1,7 +1,6 @@
 #!/bin/python3
 # Save MH data to PostgreSQL database
 
-import configparser
 import datetime
 import re
 from telnetlib import Telnet
@@ -9,22 +8,11 @@ from telnetlib import Telnet
 import psycopg2
 from shapely.geometry import Point
 
-from common import get_info
+from common import get_info, get_conf
 
 refresh_days = 1
 
-config = configparser.ConfigParser()
-config.read("settings.cfg")
-
-telnet_user = config['telnet']['username']
-telnet_pw = config['telnet']['password']
-telnet_ip = config['telnet']['ip']
-telnet_port = config['telnet']['port']
-pg_user = config['postgres']['username']
-pg_pw = config['postgres']['password']
-pg_host = config['postgres']['host']
-pg_db = config['postgres']['db']
-pg_port = config['postgres']['port']
+conf = get_conf()
 
 
 def get_last_heard(call, type):
@@ -47,24 +35,26 @@ def get_last_heard(call, type):
     cursor.execute(query)
     return cursor.fetchall()
 
+
 # Connect to PG
-con = psycopg2.connect(database=pg_db, user=pg_user,
-                       password=pg_pw, host=pg_host, port=pg_port)
+con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
+                       password=conf['pg_pw'], host=conf['pg_host'],
+                       port=conf['pg_port'])
 
 now = datetime.datetime.now().replace(microsecond=0)
 year = datetime.date.today().year
 
-tn = Telnet(telnet_ip, telnet_port, timeout=5)
+tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
 tn.read_until(b"user: ", timeout=2)
-tn.write(telnet_user.encode('ascii') + b"\r")
+tn.write(conf['telnet_user'].encode('ascii') + b"\r")
 tn.read_until(b"password:", timeout=2)
-tn.write(telnet_pw.encode('ascii') + b"\r")
+tn.write(conf['telnet_pw'].encode('ascii') + b"\r")
 tn.read_until(b"Connected", timeout=2)
 tn.write("mhu 1".encode('ascii') + b"\r")
 tn.write(b"\r")
 tn.write(b"bye\r")
 
-print(f"Connected to {telnet_ip}")
+print(f"Connected to {conf['telnet_ip']}")
 
 output = tn.read_all()
 output = output.split(b"Port 1")[1].strip()
@@ -148,7 +138,6 @@ write_cursor = con.cursor()
 for item in radio_mh_list:
     call = item[0].strip()
     op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
-    print(op_call)
     timestamp = item[1]
 
     try:
