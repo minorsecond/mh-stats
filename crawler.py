@@ -63,7 +63,6 @@ if node_to_crawl:  # Connect to remote
     path = node_to_crawl
 
 else:
-    input("Default node")
     path = "KD5LPB-7"
     tn.write("n".encode('ascii') + b"\r")
     tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
