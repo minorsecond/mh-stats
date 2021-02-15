@@ -35,9 +35,9 @@ first_order_nodes = {}
 for node in first_order_results:
     first_order_nodes[node[0].strip()] = node[1]
 
-bad_geocode_calls = []
+bad_geocode_calls = {}
 for bad_call in bad_geocode_results:
-    bad_geocode_calls.append(bad_call[0])
+    bad_geocode_calls[(bad_call[0])] = bad_call[1]
 
 # Connect to local telnet server
 tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
@@ -101,33 +101,38 @@ for call in clean_call_list:
     call = call.decode('utf-8')
     base_call = re.sub(r'[^\w]', ' ', call.split('-')[0])
     if base_call not in processed_calls:
+        last_checked = first_order_nodes.get(base_call)
+
+        if not last_checked:  # Might be in bad geocodes table
+            last_checked = bad_geocode_calls.get(base_call)
+
+        days_lapsed = last_checked and (last_checked - now).days
         if '-' in call:
             ssid = re.sub(r'[^\w]', ' ', call.split('-')[1])
         else:
             ssid = None
 
         # Add new node
-        if base_call not in first_order_nodes:
-            print(f"Attempting to add node {base_call}")
-            last_checked = first_order_nodes.get(base_call)
-            if last_checked and (
-                    last_checked - now).days >= 14 or not last_checked:
-                info = get_info(base_call)
-                parent_call = base_call
-                last_check = now
-                order = 1
-                path = parent_call
+        if (days_lapsed and days_lapsed >= refresh_days) or not days_lapsed:
+            info = get_info(base_call)
+            parent_call = base_call
+            last_check = now
+            order = 1
+            path = parent_call
 
-                if info:
-                    try:
-                        lat = float(info[0])
-                        lon = float(info[1])
-                        grid = info[2]
-                        point = Point(lon, lat).wkb_hex
-                        added_counter += 1
-                    except ValueError:
-                        print(f"Error getting coordinates for {base_call}")
-                        point = None
+            if info:
+                try:
+                    lat = float(info[0])
+                    lon = float(info[1])
+                    grid = info[2]
+                    point = Point(lon, lat).wkb_hex
+                    added_counter += 1
+                except ValueError:
+                    print(f"Error getting coordinates for {base_call}")
+                    point = None
+
+            if base_call not in first_order_nodes:
+                print(f"Attempting to add node {base_call}")
 
                 if point:
                     write_first_order_nodes.execute(
@@ -161,6 +166,16 @@ for call in clean_call_list:
                             f"Repeated failure geocoding node {base_call}. Updating last checked time.")
                         bad_geocode_update_query = f"UPDATE packet_mh.bad_geocodes SET last_checked=now() WHERE call = '{base_call}';"
                         write_bad_geocodes.execute(bad_geocode_update_query)
+
+            else:  # Update node that exists in node table
+                if point:
+                    print(f"Updating node {base_call}")
+                    update_node_query = f"UPDATE packet_mh.nodes SET geom=st_setsrid('{point}'::geometry, 4326), last_check = now() WHERE call = '{base_call}'"
+                else:
+                    print(f"Couldn't geocode {base_call}")
+        elif days_lapsed < refresh_days:
+            print(f"Not processing {base_call} as not enough days have passed"
+                  f"since last checked")
         processed_calls.append(base_call)
 
 if processed_calls == 0:
@@ -173,7 +188,7 @@ if updated_counter == 0:
 else:
     print(f"Updated {updated_counter} nodes")
 
-if len(bad_geocode_calls) == 0:
+if no_geocode_counter == 0:
     print("No errors encountered")
 else:
     print(f"{no_geocode_counter} errors encountered")
