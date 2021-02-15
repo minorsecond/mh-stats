@@ -39,6 +39,8 @@ bad_geocode_calls = {}
 for bad_call in bad_geocode_results:
     bad_geocode_calls[(bad_call[0])] = bad_call[1]
 
+node_to_crawl = input("Call & SSID or node alias of node to crawl: ")
+
 # Connect to local telnet server
 tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
 tn.read_until(b"user: ", timeout=2)
@@ -46,14 +48,27 @@ tn.write(conf['telnet_user'].encode('ascii') + b"\r")
 tn.read_until(b"password:", timeout=2)
 tn.write(conf['telnet_pw'].encode('ascii') + b"\r")
 tn.read_until(b"Connected", timeout=2)
-tn.write("n".encode('ascii') + b"\r")
-tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
-tn.write(b"bye\r")
 
-print(f"Connected to {conf['telnet_ip']}")
+if node_to_crawl:  # Connect to remote
+    connect_cmd = f"c {node_to_crawl}".encode('ascii')
+    tn.write(connect_cmd + b"\r")
+    tn.read_until(b'Connected', timeout=20)
+    tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+    tn.read_until(b"\n", timeout=20)
+    tn.write("n".encode('ascii') + b'\r')
+    tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+    path = node_to_crawl
+
+else:
+    path = "KD5LPB-7"
+    tn.write("n".encode('ascii') + b"\r")
+    tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+
+print(f"Connected to {conf['telnet_ip']} - {node_to_crawl}")
 
 calls = []
-output = tn.read_until(b'***')
+tn.write(b"bye\r")
+output = tn.read_until(b'***', timeout=20)
 output = output.split(b"Nodes")[1].strip()
 output = output.split(b'***')[0]
 output = re.sub(b' +', b' ', output)
@@ -88,13 +103,13 @@ def remove_dupes(call_list):
     return res
 
 
-def clean_calls(calls):
+def clean_calls(calls_to_clean):
     """
     Cleans output from telnet, removing : and whitespaces
     """
 
     cleaned_calls = []
-    for call in calls:
+    for call in calls_to_clean:
         if b':' in call:
             call = call.split(b':')
             while (b'' in call):
@@ -113,6 +128,7 @@ def clean_calls(calls):
 
 
 processed_node_names = []
+processed_calls = []
 no_geocode_counter = 0
 added_counter = 0
 updated_counter = 0
@@ -153,65 +169,73 @@ for node_name_pair in clean_call_list:
         # Add new node
         if (days_lapsed and days_lapsed >= refresh_days) or not days_lapsed:
             for check_call in [name_first_part, name_second_part]:
-                node_name_part = re.sub(r'[^\w]', ' ',
-                                        check_call.split('-')[0])
-                print(f"Processing node name part: {node_name_part}")
-                info = get_info(node_name_part)
-                parent_call = node_name_part
-                last_check = now
-                order = 1
-                path = parent_call
-
-                if info:  # Valid call, but maybe no coords
+                if check_call:
                     if '-' in check_call:
-                        ssid = re.sub(r'[^\w]', ' ', check_call.split('-')[1])
+                        node_name_part = re.sub(r'[^\w]', ' ',
+                                                check_call.split('-')[0])
                     else:
-                        ssid = None
+                        node_name_part = check_call
+                    print(f"Processing node name part: {node_name_part}")
+                    info = get_info(node_name_part)
+                    parent_call = node_name_part
+                    last_check = now
+                    order = 1
 
-                    base_call = node_name_part
+                    if info:  # Valid call, but maybe no coords
+                        if '-' in check_call:
+                            ssid = re.sub(r'[^\w]', ' ',
+                                          check_call.split('-')[1])
+                        else:
+                            ssid = None
 
-                    try:
-                        lat = float(info[0])
-                        lon = float(info[1])
-                        grid = info[2]
-                        point = Point(lon, lat).wkb_hex
-                        added_counter += 1
-                        print(f"Got coords for {base_call}")
-                    except ValueError:
-                        print(f"Error getting coords for {base_call}")
-                        point = None
+                        base_call = node_name_part
 
-                else:
-                    print(f"Couldn't get info for {node_name_part}")
+                        try:
+                            lat = float(info[0])
+                            lon = float(info[1])
+                            grid = info[2]
+                            point = Point(lon, lat).wkb_hex
+                            added_counter += 1
+                            print(f"Got coords for {base_call}")
+                        except ValueError:
+                            print(f"Error getting coords for {base_call}")
+                            point = None
 
-                if base_call not in first_order_nodes:
-
-                    if point:
-                        write_first_order_nodes.execute(
-                            f"INSERT INTO packet_mh.nodes "
-                            f"(call, parent_call, last_check, "
-                            f"geom, ssid, path, level, grid) VALUES "
-                            f"(%s, %s, %s, "
-                            f"st_setsrid('{point}'::geometry, 4326), "
-                            f"%s, %s, %s, %s)", (
-                                base_call, parent_call, last_check,
-                                ssid, path, order, grid))
-
-                        print(f"Added {base_call} to node table")
-
-                        # Remove from bad geocode table
-                        if base_call in bad_geocode_calls:
-                            write_bad_geocodes.executef(
-                                f"DELETE FROM packet_mh.bad_geocodes WHERE node_name='{node_name_string}'")
-                        break
-
-                else:  # Update node that exists in node table
-                    if point:
-                        print(f"Updating node {base_call}")
-                        update_node_query = f"UPDATE packet_mh.nodes SET geom=st_setsrid('{point}'::geometry, 4326), last_check = now() WHERE call = '{base_call}'"
-                        break
                     else:
-                        print(f"Couldn't geocode {base_call}")
+                        print(f"Couldn't get info for {node_name_part}")
+
+                    if base_call not in first_order_nodes or processed_calls:
+
+                        if point:
+                            write_first_order_nodes.execute(
+                                f"INSERT INTO packet_mh.nodes "
+                                f"(call, parent_call, last_check, "
+                                f"geom, ssid, path, level, grid) VALUES "
+                                f"(%s, %s, %s, "
+                                f"st_setsrid('{point}'::geometry, 4326), "
+                                f"%s, %s, %s, %s)", (
+                                    base_call, parent_call, last_check,
+                                    ssid, path, order, grid))
+
+                            print(f"Added {base_call} to node table")
+
+                            # Remove from bad geocode table
+                            if base_call in bad_geocode_calls:
+                                write_bad_geocodes.executef(
+                                    f"DELETE FROM packet_mh.bad_geocodes WHERE node_name='{node_name_string}'")
+                            break
+
+                        processed_calls.append(base_call)
+
+                    else:  # Update node that exists in node table
+                        if point:
+                            print(f"Updating node {base_call}")
+                            update_node_query = f"UPDATE packet_mh.nodes SET geom=st_setsrid('{point}'::geometry, 4326), last_check = now() WHERE call = '{base_call}'"
+                            break
+                        else:
+                            print(f"Couldn't geocode {base_call}")
+
+                        processed_calls.append(base_call)
 
             # Don't add to bad geocode table if we have coords
             if not point and (
@@ -235,10 +259,10 @@ for node_name_pair in clean_call_list:
                 bad_geocode_update_query = f"UPDATE packet_mh.bad_geocodes SET last_checked=now() WHERE node_name = '{node_name_string}';"
                 write_bad_geocodes.execute(bad_geocode_update_query)
 
-
         elif days_lapsed < refresh_days:
-            print(f"Not processing {base_call} as not enough days have passed"
-                  f" since last checked")
+            print(
+                f"Not processing {node_name_string} as not enough days have passed"
+                f" since last checked")
         processed_node_names.append(base_call)
 
 if processed_node_names == 0:
