@@ -1,5 +1,6 @@
 #!/bin/python3
 
+import argparse
 import datetime
 import re
 from telnetlib import Telnet
@@ -9,6 +10,10 @@ from shapely.geometry import Point
 
 from common import get_info, get_conf
 
+parser = argparse.ArgumentParser(description="Get node to crawl")
+parser.add_argument('--node', metavar='N', type=str, help="Node name to crawl")
+args = parser.parse_args()
+node_to_crawl = args.node
 conf = get_conf()
 
 now = datetime.datetime.now().replace(microsecond=0)
@@ -39,8 +44,6 @@ bad_geocode_calls = {}
 for bad_call in bad_geocode_results:
     bad_geocode_calls[(bad_call[0])] = bad_call[1]
 
-node_to_crawl = input("Call & SSID or node alias of node to crawl: ")
-
 # Connect to local telnet server
 tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
 tn.read_until(b"user: ", timeout=2)
@@ -60,6 +63,7 @@ if node_to_crawl:  # Connect to remote
     path = node_to_crawl
 
 else:
+    input("Default node")
     path = "KD5LPB-7"
     tn.write("n".encode('ascii') + b"\r")
     tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
