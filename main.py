@@ -1,12 +1,14 @@
 #!/bin/python3
 # Save MH data to PostgreSQL database
 
-from telnetlib import Telnet
-import re
-import psycopg2
-import datetime
 import configparser
+import datetime
+import re
+from telnetlib import Telnet
+
+import psycopg2
 from shapely.geometry import Point
+
 from common import get_info
 
 refresh_days = 1
@@ -145,7 +147,8 @@ current_op_list = []
 write_cursor = con.cursor()
 for item in radio_mh_list:
     call = item[0].strip()
-    op_call = call.split('-')[0].strip()
+    op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
+    print(op_call)
     timestamp = item[1]
 
     try:
