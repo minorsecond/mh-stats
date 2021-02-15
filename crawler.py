@@ -1,6 +1,5 @@
 #!/bin/python3
 
-import configparser
 import datetime
 import re
 from telnetlib import Telnet
@@ -8,29 +7,18 @@ from telnetlib import Telnet
 import psycopg2
 from shapely.geometry import Point
 
-from common import get_info
+from common import get_info, get_conf
+
+conf = get_conf()
 
 now = datetime.datetime.now().replace(microsecond=0)
 refresh_days = 7
 
-config = configparser.ConfigParser()
-config.read("settings.cfg")
-
-telnet_user = config['telnet']['username']
-telnet_pw = config['telnet']['password']
-telnet_ip = config['telnet']['ip']
-telnet_port = config['telnet']['port']
-pg_user = config['postgres']['username']
-pg_pw = config['postgres']['password']
-pg_host = config['postgres']['host']
-pg_db = config['postgres']['db']
-pg_port = config['postgres']['port']
-
 # Connect to PG
-con = psycopg2.connect(database=pg_db, user=pg_user,
-                       password=pg_pw, host=pg_host, port=pg_port)
+con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
+                       password=conf['pg_pw'], host=conf['pg_host'],
+                       port=conf['pg_port'])
 
-now = datetime.datetime.now().replace(microsecond=0)
 year = datetime.date.today().year
 
 read_first_order_node_cursor = con.cursor()
@@ -52,17 +40,17 @@ for bad_call in bad_geocode_results:
     bad_geocode_calls.append(bad_call[0])
 
 # Connect to local telnet server
-tn = Telnet(telnet_ip, telnet_port, timeout=5)
+tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
 tn.read_until(b"user: ", timeout=2)
-tn.write(telnet_user.encode('ascii') + b"\r")
+tn.write(conf['telnet_user'].encode('ascii') + b"\r")
 tn.read_until(b"password:", timeout=2)
-tn.write(telnet_pw.encode('ascii') + b"\r")
+tn.write(conf['telnet_pw'].encode('ascii') + b"\r")
 tn.read_until(b"Connected", timeout=2)
 tn.write("n".encode('ascii') + b"\r")
 tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
 tn.write(b"bye\r")
 
-print(f"Connected to {telnet_ip}")
+print(f"Connected to {conf['telnet_ip']}")
 
 calls = []
 output = tn.read_until(b'***')
