@@ -175,13 +175,13 @@ for call in clean_call_list:
                     print(f"Couldn't geocode {base_call}")
         elif days_lapsed < refresh_days:
             print(f"Not processing {base_call} as not enough days have passed"
-                  f"since last checked")
+                  f" since last checked")
         processed_calls.append(base_call)
 
 if processed_calls == 0:
     print("No nodes added")
 else:
-    print(f"Added {len(processed_calls)} nodes")
+    print(f"Processed {len(processed_calls)} nodes")
 
 if updated_counter == 0:
     print("No nodes updated")
