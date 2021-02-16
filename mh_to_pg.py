@@ -211,6 +211,7 @@ for digipeater in digipeater_list.items():
     lat = None
     lon = None
     grid = None
+    point = None
     digipeater_call = digipeater[0]
     timestamp = digipeater[1]
     heard = False
@@ -256,9 +257,18 @@ for digipeater in digipeater_list.items():
             added_digipeaters.append(digipeater_call)
 
     elif timedelta and timedelta.days >= refresh_days:
-        if (lat, lon, grid) != existing_digipeaters_data.get(digipeater_call):
+        digipeater_info = get_info(digipeater_call)
+
+        if digipeater_info:
+            print(f"Adding digipeater {digipeater_call}")
+            lat = float(digipeater_info[0])
+            lon = float(digipeater_info[1])
+            point = Point(lon, lat).wkb_hex
+            grid = digipeater_info[2]
             print(f"Updating digipeater coordinates for {digipeater}")
-            update_digi_query = f"UPDATE packet_mh.digipeaters SET geom = st_setsrid('{point}'::geometry, 4326) WHERE call = '{digipeater_call}';"
+            update_op_query = "UPDATE packet_mh.digipeaters SET geom = st_setsrid(%s::geometry, 4326) WHERE call = %s", (
+            point, digipeater_call)
+            # update_digi_query = f"UPDATE packet_mh.digipeaters SET geom = st_setsrid('{point}'::geometry, 4326) WHERE call = '{digipeater_call}';"
             write_cursor.execute(update_digi_query)
 
     # Update timestamp
