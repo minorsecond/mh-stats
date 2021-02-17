@@ -422,7 +422,6 @@ for operator in all_operators:
     for mh_item in all_mh:
         remote_call = mh_item[0]
         band = mh_item[1]
-        print(f"{call} - {band}")
 
         if remote_call.split('-')[0] == call and band:
             if band not in operating_bands:
@@ -430,7 +429,7 @@ for operator in all_operators:
 
     if len(operating_bands) > 0:
         all_ops_cusror.execute(
-            f"UPDATE packet_mh.remote_operators SET bands='{operating_bands}';")
+            f"UPDATE packet_mh.remote_operators SET bands='{operating_bands}' WHERE remote_call = '{call}';")
 
 con.commit()
 con.close()
