@@ -10,7 +10,7 @@ from shapely.geometry import Point
 
 from common import get_info, get_conf
 
-refresh_days = 1
+refresh_days = 7
 
 conf = get_conf()
 
