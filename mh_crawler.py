@@ -12,7 +12,7 @@ from shapely.geometry import Point
 from common import get_info, get_conf
 
 refresh_days = 14
-debug = False
+debug = True
 
 
 def get_last_heard(call, type):
@@ -88,8 +88,8 @@ existing_remote_mh_results = remote_mh_cursor.fetchall()
 
 existing_mh_data = []
 for row in existing_remote_mh_results:
-    call = row[2]
-    timestamp = row[3]
+    call = row[1]
+    timestamp = row[2]
     hms = timestamp.strftime("%H:%M:%S")
     existing_mh_data.append(f"{call} {hms}")
 
@@ -222,6 +222,7 @@ digipeater_list = {}
 current_op_list = []
 write_cursor = con.cursor()
 for item in mh_list:
+
     call = item[0].strip()
     op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
 
@@ -258,12 +259,12 @@ for item in mh_list:
     # Write MH table
     if f"{call} {hms}" not in existing_mh_data:
         print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
+
         write_cursor.execute("INSERT INTO packet_mh.remote_mh "
                              "(parent_call, remote_call, heard_time, ssid, update_time, port) "
                              "VALUES (%s, %s, %s, %s, %s, %s)",
                              (node_to_crawl, call, timestamp, ssid, now,
                               port_name))
-        # write_cursor.execute(f"INSERT INTO packet_mh.remote_mh (parent_call, remote_call, heard_time, ssid, update_time) VALUES ('{node_to_crawl}','{call}','{timestamp}', '{ssid}','{now}')")
 
     # Update ops last heard
     if last_heard and timestamp > last_heard:
@@ -389,6 +390,47 @@ for digipeater in digipeater_list.items():
     if last_seen and last_seen < timestamp:
         update_digi_query = f"UPDATE packet_mh.remote_digipeaters SET lastheard = '{timestamp}', heard = '{heard}' WHERE call = '{digipeater_call}';"
         write_cursor.execute(update_digi_query)
+
+# Get bands for each operator
+print("Updating bands columns")
+write_cursor.execute("UPDATE packet_mh.remote_mh SET band = CASE "
+                     "WHEN (port LIKE '%44_.%' OR port LIKE '44_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '70CM' "
+                     "WHEN (port LIKE '%14_.%' OR port LIKE '14_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '2M' "
+                     "WHEN (port LIKE '% 14.%' OR port LIKE '14.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '% 7.%' THEN '20M' "
+                     "WHEN (port LIKE '% 7.%' OR port LIKE '7.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '%14.%%%' THEN '40M' "
+                     "END;")
+
+all_ops_cusror = con.cursor()
+all_mh_cursor = con.cursor()
+all_ops_cusror.execute(
+    "SELECT remote_call, bands from packet_mh.remote_operators WHERE bands IS NULL;"
+)
+all_operators = all_ops_cusror.fetchall()
+for operator in all_operators:
+    operating_bands = ""
+    call = operator[0]
+    call = call.split('-')[0]
+    bands = operator[1]
+
+    all_mh_cursor.execute(
+        f"SELECT remote_call, band FROM packet_mh.remote_mh WHERE remote_call LIKE '{call}-%'")
+    all_mh = all_mh_cursor.fetchall()
+
+    if bands:
+        operating_bands += bands
+
+    for mh_item in all_mh:
+        remote_call = mh_item[0]
+        band = mh_item[1]
+        print(f"{call} - {band}")
+
+        if remote_call.split('-')[0] == call and band:
+            if band not in operating_bands:
+                operating_bands += f"{band},"
+
+    if len(operating_bands) > 0:
+        all_ops_cusror.execute(
+            f"UPDATE packet_mh.remote_operators SET bands='{operating_bands}';")
 
 con.commit()
 con.close()
