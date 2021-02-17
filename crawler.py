@@ -50,12 +50,12 @@ tn.read_until(b"user: ", timeout=2)
 tn.write(conf['telnet_user'].encode('ascii') + b"\r")
 tn.read_until(b"password:", timeout=2)
 tn.write(conf['telnet_pw'].encode('ascii') + b"\r")
-tn.read_until(b"Connected", timeout=2)
+tn.read_until(b'Telnet Server\r\n', timeout=20)
 
 if node_to_crawl:  # Connect to remote
     connect_cmd = f"c {node_to_crawl}".encode('ascii')
-    tn.write(connect_cmd + b"\r")
-    tn.read_until(b'Connected', timeout=20)
+    tn.write(b"\r\n" + connect_cmd + b"\r")
+    tn.read_until(b'Connected to', timeout=20)
     tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
     tn.read_until(b"\n", timeout=20)
     tn.write("n".encode('ascii') + b'\r')
@@ -71,11 +71,16 @@ print(f"Connected to {conf['telnet_ip']} - {node_to_crawl}")
 
 calls = []
 tn.write(b"bye\r")
-output = tn.read_until(b'***', timeout=20)
-output = output.split(b"Nodes")[1].strip()
-output = output.split(b'***')[0]
-output = re.sub(b' +', b' ', output)
-output = output.split(b'\r\n')
+
+try:
+    output = tn.read_until(b'***', timeout=20)
+    output = output.split(b"Nodes")[1].strip()
+    output = output.split(b'***')[0]
+    output = re.sub(b' +', b' ', output)
+    output = output.split(b'\r\n')
+except Exception as e:
+    print(f"Error parsing output: {e}")
+    exit()
 
 for row in output:
     calls.extend(row.split(b' '))

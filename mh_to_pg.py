@@ -229,10 +229,10 @@ for digipeater in digipeater_list.items():
     digipeater_call = re.sub(r'[^\w]', ' ', digipeater_call.split('-')[0]).strip()
 
     try:
-        last_heard = get_last_heard(digipeater_call, "digi")[0][1]
-        timedelta = (now - last_heard)
+        last_seen = get_last_heard(digipeater_call, "digi")[0][1]
+        timedelta = (now - last_seen)
     except IndexError:
-        last_heard = None
+        last_seen = None  # New digi
         timedelta = None
 
     if digipeater_call not in existing_digipeaters_data and \
@@ -272,7 +272,7 @@ for digipeater in digipeater_list.items():
             write_cursor.execute(update_digi_query)
 
     # Update timestamp
-    if last_heard and last_heard < timestamp:
+    if last_seen and last_seen < timestamp:
         update_digi_query = f"UPDATE packet_mh.digipeaters SET lastheard = '{timestamp}', heard = '{heard}' WHERE call = '{digipeater_call}';"
         write_cursor.execute(update_digi_query)
 
