@@ -61,7 +61,8 @@ available_ports_raw = available_ports_raw.split(b'***')[0]
 available_ports_raw = re.sub(b' +', b' ', available_ports_raw)
 available_ports = available_ports_raw.split(b'\r\n')
 
-# Give menu options on scree
+# Give menu options on screen
+selected_port = None
 menu_item = 1
 print("Select VHF/UHF port to scan MHeard on")
 for port in available_ports:
@@ -70,8 +71,23 @@ for port in available_ports:
     menu_item += 1
 
 try:
-    selected_port = available_ports[int(input()) - 1]
+    selected_port = int(input().strip())
 except ValueError:
     print("You didn't enter a valid selection. Closing")
     tn.write(b'bye\r')
     exit()
+
+if selected_port:
+    print(f"Getting MH list for port {selected_port}.")
+    mh_command = f"mhu {selected_port}".encode('ascii')
+    tn.write(mh_command + b"\r")
+    tn.write(b"\r")
+    tn.write(b"bye\r")
+
+mh_output = tn.read_until(b'***', timeout=20)
+mh_output = mh_output.split(b"Port 1")[1].strip()
+mh_output = mh_output.split(b'***')[0]
+mh_output = re.sub(b' +', b' ', mh_output)
+mh_output = mh_output.split(b'\r\n')
+
+print(mh_output)
