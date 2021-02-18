@@ -31,7 +31,7 @@ def get_last_heard(call, type):
         table = "digipeaters"
 
     # noinspection SqlResolve
-    query = f"SELECT DISTINCT on (call, lastheard) call, lastheard FROM packet_mh.{table} WHERE call='{call}' ORDER BY lastheard DESC LIMIT 1;"
+    query = f"SELECT DISTINCT on (call, lastheard) call, lastheard FROM public.{table} WHERE call='{call}' ORDER BY lastheard DESC LIMIT 1;"
     cursor.execute(query)
     return cursor.fetchall()
 
@@ -96,7 +96,7 @@ for item in output:
 
 # Write to PG, first get existing data to check for duplicates
 read_mh = con.cursor()
-read_mh.execute("SELECT * FROM packet_mh.mh_list")
+read_mh.execute("SELECT * FROM public.mh_list")
 existing_mh = read_mh.fetchall()
 
 existing_mh_data = []
@@ -109,7 +109,8 @@ for row in existing_mh:
 radio_mh_list = sorted(radio_mh_list, key=lambda x: x[1], reverse=False)
 
 read_operators = con.cursor()
-read_operators.execute("SELECT id, call, ST_X(geom), ST_Y(geom) FROM packet_mh.operators")
+read_operators.execute(
+    "SELECT id, call, ST_X(geom), ST_Y(geom) FROM public.operators")
 existing_ops = read_operators.fetchall()
 
 existing_ops_data = {}
@@ -120,7 +121,8 @@ for op in existing_ops:
     existing_ops_data[call] = (lat, lon)
 
 read_digipeaters = con.cursor()
-read_digipeaters.execute("SELECT call, ST_X(geom), ST_Y(geom), heard FROM packet_mh.digipeaters")
+read_digipeaters.execute(
+    "SELECT call, ST_X(geom), ST_Y(geom), heard FROM public.digipeaters")
 existing_digipeaters = read_digipeaters.fetchall()
 
 existing_digipeaters_data = {}
@@ -165,11 +167,12 @@ for item in radio_mh_list:
     # Write MH table
     if f"{call} {hms}" not in existing_mh_data:
         print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
-        write_cursor.execute(f"INSERT INTO packet_mh.mh_list (timestamp,call,digipeaters,op_call) VALUES ('{timestamp}','{call}','{digipeaters}', '{op_call}')")
+        write_cursor.execute(
+            f"INSERT INTO public.mh_list (timestamp,call,digipeaters,op_call) VALUES ('{timestamp}','{call}','{digipeaters}', '{op_call}')")
 
     # Update ops last heard
     if last_heard and timestamp > last_heard:
-        update_op_query = f"UPDATE packet_mh.operators SET lastheard = '{timestamp}' WHERE call = '{op_call}';"
+        update_op_query = f"UPDATE public.operators SET lastheard = '{timestamp}' WHERE call = '{op_call}';"
         write_cursor.execute(update_op_query)
 
     # Write Ops table if
@@ -184,7 +187,8 @@ for item in radio_mh_list:
             grid = info[2]
 
         print(f"{now} Adding {op_call} to operator table.")
-        write_cursor.execute(f"INSERT INTO packet_mh.operators (call, lastheard, geom, grid) VALUES ('{op_call}', '{timestamp}', st_setsrid('{point}'::geometry, 4326), '{grid}')")
+        write_cursor.execute(
+            f"INSERT INTO public.operators (call, lastheard, geom, grid) VALUES ('{op_call}', '{timestamp}', st_setsrid('{point}'::geometry, 4326), '{grid}')")
         current_op_list.append(op_call)
 
     elif timedelta and timedelta.days >= refresh_days and op_call not in current_op_list:
@@ -200,7 +204,7 @@ for item in radio_mh_list:
 
         if (lat, lon, grid) != existing_ops_data.get(call):
             print(f"Updating coordinates for {op_call}")
-            update_op_query = f"UPDATE packet_mh.operators SET geom = st_setsrid('{point}'::geometry, 4326) WHERE call = '{op_call}';"
+            update_op_query = f"UPDATE public.operators SET geom = st_setsrid('{point}'::geometry, 4326) WHERE call = '{op_call}';"
             write_cursor.execute(update_op_query)
 
         current_op_list.append(op_call)
@@ -247,7 +251,7 @@ for digipeater in digipeater_list.items():
             point = Point(lon, lat).wkb_hex
             grid = digipeater_info[2]
 
-            write_cursor.execute("INSERT INTO packet_mh.digipeaters "
+            write_cursor.execute("INSERT INTO public.digipeaters "
                                  "(call, lastheard, grid, geom, heard, ssid) "
                                  "VALUES (%s, %s, %s, "
                                  "st_setsrid(%s::geometry, 4326), %s, %s)",
@@ -266,14 +270,13 @@ for digipeater in digipeater_list.items():
             point = Point(lon, lat).wkb_hex
             grid = digipeater_info[2]
             print(f"Updating digipeater coordinates for {digipeater}")
-            update_op_query = "UPDATE packet_mh.digipeaters SET geom = st_setsrid(%s::geometry, 4326) WHERE call = %s", (
-            point, digipeater_call)
-            # update_digi_query = f"UPDATE packet_mh.digipeaters SET geom = st_setsrid('{point}'::geometry, 4326) WHERE call = '{digipeater_call}';"
+            update_op_query = "UPDATE public.digipeaters SET geom = st_setsrid(%s::geometry, 4326) WHERE call = %s", (
+                point, digipeater_call)
             write_cursor.execute(update_digi_query)
 
     # Update timestamp
     if last_seen and last_seen < timestamp:
-        update_digi_query = f"UPDATE packet_mh.digipeaters SET lastheard = '{timestamp}', heard = '{heard}' WHERE call = '{digipeater_call}';"
+        update_digi_query = f"UPDATE public.digipeaters SET lastheard = '{timestamp}', heard = '{heard}' WHERE call = '{digipeater_call}';"
         write_cursor.execute(update_digi_query)
 
 con.commit()

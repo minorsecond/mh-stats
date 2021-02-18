@@ -28,12 +28,12 @@ year = datetime.date.today().year
 
 read_first_order_node_cursor = con.cursor()
 read_first_order_node_cursor.execute('SELECT call, last_check FROM '
-                                     'packet_mh.nodes WHERE level=1')
+                                     'public.nodes WHERE level=1')
 first_order_results = read_first_order_node_cursor.fetchall()
 
 read_bad_geocodes_cursor = con.cursor()
 read_bad_geocodes_cursor.execute('SELECT node_name, last_checked FROM '
-                                 'packet_mh.bad_geocodes')
+                                 'public.bad_geocodes')
 bad_geocode_results = read_bad_geocodes_cursor.fetchall()
 
 first_order_nodes = {}
@@ -216,7 +216,7 @@ for node_name_pair in clean_call_list:
 
                         if point:
                             write_first_order_nodes.execute(
-                                f"INSERT INTO packet_mh.nodes "
+                                f"INSERT INTO public.nodes "
                                 f"(call, parent_call, last_check, "
                                 f"geom, ssid, path, level, grid) VALUES "
                                 f"(%s, %s, %s, "
@@ -230,7 +230,7 @@ for node_name_pair in clean_call_list:
                             # Remove from bad geocode table
                             if base_call in bad_geocode_calls:
                                 write_bad_geocodes.executef(
-                                    f"DELETE FROM packet_mh.bad_geocodes WHERE node_name='{node_name_string}'")
+                                    f"DELETE FROM public.bad_geocodes WHERE node_name='{node_name_string}'")
                             break
 
                         processed_calls.append(base_call)
@@ -238,7 +238,7 @@ for node_name_pair in clean_call_list:
                     else:  # Update node that exists in node table
                         if point:
                             print(f"Updating node {base_call}")
-                            update_node_query = f"UPDATE packet_mh.nodes SET geom=st_setsrid('{point}'::geometry, 4326), last_check = now() WHERE call = '{base_call}'"
+                            update_node_query = f"UPDATE public.nodes SET geom=st_setsrid('{point}'::geometry, 4326), last_check = now() WHERE call = '{base_call}'"
                             break
                         else:
                             print(f"Couldn't geocode {base_call}")
@@ -251,7 +251,7 @@ for node_name_pair in clean_call_list:
                 print(
                     f"Couldn't get coords for {node_name_string}. Adding to bad_geocodes table.")
                 write_bad_geocodes.execute(
-                    f"INSERT INTO packet_mh.bad_geocodes"
+                    f"INSERT INTO public.bad_geocodes"
                     f"(last_checked, reason, node_name) "
                     f"VALUES (%s, %s, %s)",
                     (now, 'Bad Add', node_name_string))
@@ -264,7 +264,7 @@ for node_name_pair in clean_call_list:
                 # Update attempt time
                 print(
                     f"Repeated failure geocoding node {node_name_string}. Updating last checked time.")
-                bad_geocode_update_query = f"UPDATE packet_mh.bad_geocodes SET last_checked=now() WHERE node_name = '{node_name_string}';"
+                bad_geocode_update_query = f"UPDATE public.bad_geocodes SET last_checked=now() WHERE node_name = '{node_name_string}';"
                 write_bad_geocodes.execute(bad_geocode_update_query)
 
         elif days_lapsed < refresh_days:

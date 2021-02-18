@@ -31,7 +31,7 @@ def get_last_heard(call, type):
         table = "digipeaters"
 
     # noinspection SqlResolve
-    query = f"SELECT DISTINCT on (call, lastheard) call, lastheard FROM packet_mh.{table} WHERE call='{call}' ORDER BY lastheard DESC LIMIT 1;"
+    query = f"SELECT DISTINCT on (call, lastheard) call, lastheard FROM public.{table} WHERE call='{call}' ORDER BY lastheard DESC LIMIT 1;"
     cursor.execute(query)
     return cursor.fetchall()
 
@@ -58,7 +58,7 @@ con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
 
 read_operators = con.cursor()
 read_operators.execute(
-    "SELECT id, parent_call, remote_call,lastheard,grid, ST_X(geom), ST_Y(geom) FROM packet_mh.remote_operators")
+    "SELECT id, parent_call, remote_call,lastheard,grid, ST_X(geom), ST_Y(geom) FROM public.remote_operators")
 existing_ops = read_operators.fetchall()
 
 existing_ops_data = {}
@@ -70,7 +70,7 @@ for op in existing_ops:
 
 read_digipeaters = con.cursor()
 read_digipeaters.execute(
-    "SELECT parent_call, call, lastheard, grid, heard, ssid, ST_X(geom), ST_Y(geom) FROM packet_mh.remote_digipeaters")
+    "SELECT parent_call, call, lastheard, grid, heard, ssid, ST_X(geom), ST_Y(geom) FROM public.remote_digipeaters")
 existing_digipeaters = read_digipeaters.fetchall()
 
 existing_digipeaters_data = {}
@@ -83,7 +83,7 @@ for digipeater in existing_digipeaters:
 
 remote_mh_cursor = con.cursor()
 remote_mh_cursor.execute(
-    'SELECT parent_call, remote_call, heard_time, update_time FROM packet_mh.remote_mh')
+    'SELECT parent_call, remote_call, heard_time, update_time FROM public.remote_mh')
 existing_remote_mh_results = remote_mh_cursor.fetchall()
 
 existing_mh_data = []
@@ -260,7 +260,7 @@ for item in mh_list:
     if f"{call} {hms}" not in existing_mh_data:
         print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
 
-        write_cursor.execute("INSERT INTO packet_mh.remote_mh "
+        write_cursor.execute("INSERT INTO public.remote_mh "
                              "(parent_call, remote_call, heard_time, ssid, update_time, port) "
                              "VALUES (%s, %s, %s, %s, %s, %s)",
                              (node_to_crawl, call, timestamp, ssid, now,
@@ -268,7 +268,7 @@ for item in mh_list:
 
     # Update ops last heard
     if last_heard and timestamp > last_heard:
-        update_op_query = f"UPDATE packet_mh.remote_operators SET lastheard = '{timestamp}' WHERE remote_call = '{op_call}';"
+        update_op_query = f"UPDATE public.remote_operators SET lastheard = '{timestamp}' WHERE remote_call = '{op_call}';"
         write_cursor.execute(update_op_query)
 
     # Write Ops table if
@@ -293,13 +293,11 @@ for item in mh_list:
 
         if grid:  # No grid means no geocode generally
             print(f"{now} Adding {op_call} to operator table.")
-            write_cursor.execute("INSERT INTO packet_mh.remote_operators "
+            write_cursor.execute("INSERT INTO public.remote_operators "
                                  "(parent_call, remote_call, lastheard, grid, geom, port) "
                                  "VALUES (%s, %s, %s, %s, st_setsrid(%s::geometry, 4326), %s)",
                                  (node_to_crawl, op_call, timestamp, grid,
                                   point, port_name))
-
-            # write_cursor.execute(f"INSERT INTO packet_mh.remote_operators (parent_call, remote_call, lastheard, grid, geom) VALUES ('{node_to_crawl}', '{op_call}', '{timestamp}', '{grid}', st_setsrid('{point}'::geometry, 4326))")
         current_op_list.append(op_call)
 
     elif timedelta and timedelta.days >= refresh_days and op_call not in current_op_list:
@@ -316,7 +314,7 @@ for item in mh_list:
         if (lat, lon, grid) != existing_ops_data.get(call):
             print(f"Updating coordinates for {op_call}")
             if point:
-                update_op_query = f"UPDATE packet_mh.remote_operators SET geom = st_setsrid('{point}'::geometry, 4326) WHERE remote_call = '{op_call}';"
+                update_op_query = f"UPDATE public.remote_operators SET geom = st_setsrid('{point}'::geometry, 4326) WHERE remote_call = '{op_call}';"
                 write_cursor.execute(update_op_query)
 
         current_op_list.append(op_call)
@@ -364,7 +362,7 @@ for digipeater in digipeater_list.items():
             point = Point(lon, lat).wkb_hex
             grid = digipeater_info[2]
 
-            write_cursor.execute("INSERT INTO packet_mh.remote_digipeaters "
+            write_cursor.execute("INSERT INTO public.remote_digipeaters "
                                  "(parent_call, call, lastheard, grid, heard, ssid, geom, port) "
                                  "VALUES (%s, %s, %s, "
                                  "%s, %s, %s, st_setsrid(%s::geometry, 4326), %s)",
@@ -385,19 +383,18 @@ for digipeater in digipeater_list.items():
 
             if point:
                 print(f"Updating digipeater coordinates for {digipeater}")
-                update_op_query = "UPDATE packet_mh.remote_digipeaters SET geom = st_setsrid(%s::geometry, 4326) WHERE call = %s", (
+                update_op_query = "UPDATE public.remote_digipeaters SET geom = st_setsrid(%s::geometry, 4326) WHERE call = %s", (
                     point, digipeater_call)
-                # update_digi_query = f"UPDATE packet_mh.digipeaters SET geom = st_setsrid('{point}'::geometry, 4326) WHERE call = '{digipeater_call}';"
                 write_cursor.execute(update_digi_query)
 
     # Update timestamp
     if last_seen and last_seen < timestamp:
-        update_digi_query = f"UPDATE packet_mh.remote_digipeaters SET lastheard = '{timestamp}', heard = '{heard}' WHERE call = '{digipeater_call}';"
+        update_digi_query = f"UPDATE public.remote_digipeaters SET lastheard = '{timestamp}', heard = '{heard}' WHERE call = '{digipeater_call}';"
         write_cursor.execute(update_digi_query)
 
 # Get bands for each operator
 print("Updating bands columns")
-write_cursor.execute("UPDATE packet_mh.remote_mh SET band = CASE "
+write_cursor.execute("UPDATE public.remote_mh SET band = CASE "
                      "WHEN (port LIKE '%44_.%' OR port LIKE '44_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '70CM' "
                      "WHEN (port LIKE '%14_.%' OR port LIKE '14_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '2M' "
                      "WHEN (port LIKE '% 14.%' OR port LIKE '14.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '% 7.%' THEN '20M' "
@@ -407,7 +404,7 @@ write_cursor.execute("UPDATE packet_mh.remote_mh SET band = CASE "
 all_ops_cusror = con.cursor()
 all_mh_cursor = con.cursor()
 all_ops_cusror.execute(
-    "SELECT remote_call, bands from packet_mh.remote_operators WHERE bands IS NULL;"
+    "SELECT remote_call, bands from public.remote_operators WHERE bands IS NULL;"
 )
 all_operators = all_ops_cusror.fetchall()
 for operator in all_operators:
@@ -417,7 +414,7 @@ for operator in all_operators:
     bands = operator[1]
 
     all_mh_cursor.execute(
-        f"SELECT remote_call, band FROM packet_mh.remote_mh WHERE remote_call LIKE '{call}%'")
+        f"SELECT remote_call, band FROM public.remote_mh WHERE remote_call LIKE '{call}%'")
     all_mh = all_mh_cursor.fetchall()
 
     if bands:
@@ -433,7 +430,7 @@ for operator in all_operators:
 
     if len(operating_bands) > 0:
         all_ops_cusror.execute(
-            f"UPDATE packet_mh.remote_operators SET bands='{operating_bands}' WHERE remote_call = '{call}';")
+            f"UPDATE public.remote_operators SET bands='{operating_bands}' WHERE remote_call = '{call}';")
 
 con.commit()
 con.close()
