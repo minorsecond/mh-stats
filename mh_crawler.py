@@ -12,7 +12,7 @@ from shapely.geometry import Point
 from common import get_info, get_conf
 
 refresh_days = 14
-debug = True
+debug = False
 
 
 def get_last_heard(call, type):
@@ -222,7 +222,7 @@ digipeater_list = {}
 current_op_list = []
 write_cursor = con.cursor()
 for item in mh_list:
-
+    info = None
     call = item[0].strip()
     op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
 
@@ -274,7 +274,11 @@ for item in mh_list:
     # Write Ops table if
     if op_call not in existing_ops_data and op_call not in current_op_list:
         # add coordinates & grid
-        info = get_info(call.split('-')[0])
+        if '-' in call:
+            try:
+                info = get_info(call.split('-')[0])
+            except Exception as e:
+                print(f"Error {e} on {call}")
 
         if info:
             try:
@@ -413,7 +417,7 @@ for operator in all_operators:
     bands = operator[1]
 
     all_mh_cursor.execute(
-        f"SELECT remote_call, band FROM packet_mh.remote_mh WHERE remote_call LIKE '{call}-%'")
+        f"SELECT remote_call, band FROM packet_mh.remote_mh WHERE remote_call LIKE '{call}%'")
     all_mh = all_mh_cursor.fetchall()
 
     if bands:
