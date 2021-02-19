@@ -53,6 +53,7 @@ con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
                        password=conf['pg_pw'], host=conf['pg_host'],
                        port=conf['pg_port'])
 
+last_crawled_port_name = None
 node_to_crawl_info = {}
 read_crawled_nodes = con.cursor()
 if auto and node_to_crawl:
@@ -62,14 +63,16 @@ if auto and node_to_crawl:
 elif auto and not debug:
     # Get a node that hasn't been crawled in 2 weeks
     read_crawled_nodes.execute(
-        f"SELECT id, node_id, port, last_crawled FROM crawled_nodes WHERE last_crawled < now() - INTERVAL '3 hours' ORDER BY random() LIMIT 1"
+        f"SELECT id, node_id, port, last_crawled, port_name FROM crawled_nodes WHERE last_crawled < now() - INTERVAL '3 hours' ORDER BY random() LIMIT 1"
     )
     crawled_node = read_crawled_nodes.fetchall()[0]
     if len(crawled_node) > 0:
         node_to_crawl_info = {
             crawled_node[1]: (
-            crawled_node[0], crawled_node[2], crawled_node[3])
+                crawled_node[0], crawled_node[2], crawled_node[3],
+                crawled_node[4])
         }
+        last_crawled_port_name = crawled_node[4]
     else:
         print("Nothing to crawl")
         exit()
@@ -196,6 +199,14 @@ else:
 if selected_port:
     port_name = available_ports[selected_port - 1].decode(
         'utf-8').strip().lstrip(digits)
+
+    # Exit if port has changed
+    if last_crawled_port_name and port_name.strip() != last_crawled_port_name.strip():
+        print(f"Port has changed for {node_to_crawl}")
+        read_crawled_nodes.execute(
+            f"UPDATE crawled_nodes SET needs_check='True' WHERE node_id='{node_to_crawl}'")
+        exit()
+
     print(f"Getting MH list for port {selected_port}.")
     mh_command = f"mhu {selected_port}".encode('ascii')
     tn.write(mh_command + b"\r")
@@ -491,7 +502,12 @@ if auto and not debug:
 
     update_crawled_node_query = f"UPDATE crawled_nodes SET last_crawled = '{now}' WHERE id = '{id}'"
     update_crawled_node_cursor.execute(update_crawled_node_query)
-elif not debug:
+
+    if not last_crawled_port_name:  # Update port name if doesn't exist
+        update_crawled_node_query = f"UPDATE crawled_nodes SET port_name = '{port_name}' WHERE id = '{id}'"
+        update_crawled_node_cursor.execute(update_crawled_node_query)
+
+elif not debug:  # Write new node
     read_crawled_nodes.execute(
         f"SELECT id, node_id, port, last_crawled FROM crawled_nodes WHERE node_id='{node_to_crawl}'"
     )
@@ -506,8 +522,8 @@ elif not debug:
     if selected_port and node_to_crawl and selected_port not in existing_ports:
         print(f"Adding {node_to_crawl} to crawled nodes table")
         update_crawled_node_cursor.execute(
-            "INSERT INTO crawled_nodes (node_id, port, last_crawled) VALUES (%s, %s, %s)",
-            (node_to_crawl, selected_port, now))
+            "INSERT INTO crawled_nodes (node_id, port, last_crawled, port_name, needs_check) VALUES (%s, %s, %s, %s, %s)",
+            (node_to_crawl, selected_port, now, port_name, False))
 
 con.commit()
 con.close()
