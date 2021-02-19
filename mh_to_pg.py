@@ -187,9 +187,14 @@ for item in radio_mh_list:
             grid = info[2]
 
         print(f"{now} Adding {op_call} to operator table.")
-        write_cursor.execute(
-            f"INSERT INTO public.operators (call, lastheard, geom, grid) VALUES ('{op_call}', '{timestamp}', st_setsrid('{point}'::geometry, 4326), '{grid}')")
-        current_op_list.append(op_call)
+        if point:
+            write_cursor.execute(
+                "INSERT INTO operators (call, lastheard, geom, grid) VALUES (%s, %s, st_setsrid(%s::geometry, 4326), %s)",
+                (op_call, timestamp, point, grid)
+            )
+            # write_cursor.execute(
+            #    "INSERT INTO public.operators (call, lastheard, geom, grid) VALUES ('{op_call}', '{timestamp}', st_setsrid('{point}'::geometry, 4326), '{grid}')")
+            current_op_list.append(op_call)
 
     elif timedelta and timedelta.days >= refresh_days and op_call not in current_op_list:
         # add coordinates & grid
