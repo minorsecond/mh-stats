@@ -45,7 +45,8 @@ node_to_crawl = args.node
 auto = args.auto
 conf = get_conf()
 
-node_to_crawl = node_to_crawl.strip().upper()
+if node_to_crawl:
+    node_to_crawl = node_to_crawl.strip().upper()
 
 now = datetime.datetime.now().replace(microsecond=0)
 year = datetime.date.today().year
@@ -524,7 +525,7 @@ elif not debug:  # Write new node
         if selected_port and node_to_crawl and selected_port and last_crawled_port_name is None:
             print("Adding port name to existing row")
             update_crawled_node_cursor.execute(
-                f"UPDATE crawled_nodes SET port_name='{port_name}' WHERE id='{nodes_to_crawl_id}'"
+                f"UPDATE crawled_nodes SET port_name='{port_name}', last_crawled = '{now}' WHERE id='{nodes_to_crawl_id}'"
             )
 
     # Add new item to table
