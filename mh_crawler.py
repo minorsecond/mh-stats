@@ -483,6 +483,7 @@ if auto and not debug:
     # Update timestamp of crawled node
     # crawled_node[1]: (crawled_node[0], crawled_node[2], crawled_node[3])
 
+    print("Updating crawled node timestamp")
     node_info = node_to_crawl_info.get(node_to_crawl)
     id = node_info[0]
     port = node_info[1]
