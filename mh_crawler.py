@@ -68,8 +68,10 @@ elif auto and not debug:
     read_crawled_nodes.execute(
         f"SELECT id, node_id, port, last_crawled, port_name FROM crawled_nodes WHERE last_crawled < now() - INTERVAL '3 hours' ORDER BY random() LIMIT 1"
     )
-    crawled_node = read_crawled_nodes.fetchall()[0]
-    if len(crawled_node) > 0:
+
+    crawled_nodes = read_crawled_nodes.fetchall()
+    if len(crawled_nodes) > 0:
+        crawled_node = crawled_nodes[0]
         node_to_crawl_info = {
             crawled_node[1]: (
                 crawled_node[0], crawled_node[2], crawled_node[3],
