@@ -36,17 +36,14 @@ def get_last_heard(call, type):
     return cursor.fetchall()
 
 
-parser = argparse.ArgumentParser(description="Get node to crawl")
+parser = argparse.ArgumentParser(description="Crawl BPQ nodes")
 parser.add_argument('--node', metavar='N', type=str, help="Node name to crawl")
+parser.add_argument('-auto', action='store_true',
+                    help="Pick a node to crawl automatically")
 args = parser.parse_args()
 node_to_crawl = args.node
+auto = args.auto
 conf = get_conf()
-
-if not node_to_crawl and not debug:
-    print("You must enter a node to crawl.")
-    exit()
-elif not node_to_crawl:
-    node_to_crawl = "KD5LPB"
 
 now = datetime.datetime.now().replace(microsecond=0)
 year = datetime.date.today().year
@@ -56,6 +53,34 @@ con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
                        password=conf['pg_pw'], host=conf['pg_host'],
                        port=conf['pg_port'])
 
+node_to_crawl_info = {}
+read_crawled_nodes = con.cursor()
+if auto and node_to_crawl:
+    print("You can't enter node to crawl & auto mode")
+    exit()
+
+elif auto and not debug:
+    # Get a node that hasn't been crawled in 2 weeks
+    read_crawled_nodes.execute(
+        f"SELECT id, node_id, port, last_crawled FROM crawled_nodes WHERE last_crawled < now() - INTERVAL '3 hours' ORDER BY random() LIMIT 1"
+    )
+    crawled_node = read_crawled_nodes.fetchall()[0]
+    if len(crawled_node) > 0:
+        node_to_crawl_info = {
+            crawled_node[1]: (
+            crawled_node[0], crawled_node[2], crawled_node[3])
+        }
+    else:
+        print("Nothing to crawl")
+        exit()
+
+elif not node_to_crawl and not debug:
+    print("You must enter a node to crawl.")
+    exit()
+elif not node_to_crawl and not auto:
+    node_to_crawl = "KD5LPB"
+
+# Get all remote operators
 read_operators = con.cursor()
 read_operators.execute(
     "SELECT id, parent_call, remote_call,lastheard,grid, ST_X(geom), ST_Y(geom) FROM public.remote_operators")
@@ -68,6 +93,7 @@ for op in existing_ops:
     lat = op[6]
     existing_ops_data[remote_call] = (lat, lon)
 
+# Get all remote digipeaters
 read_digipeaters = con.cursor()
 read_digipeaters.execute(
     "SELECT parent_call, call, lastheard, grid, heard, ssid, ST_X(geom), ST_Y(geom) FROM public.remote_digipeaters")
@@ -81,6 +107,7 @@ for digipeater in existing_digipeaters:
     heard = digipeater[4]
     existing_digipeaters_data[digipeater_call] = (lat, lon, heard)
 
+# Get remote MHeard list
 remote_mh_cursor = con.cursor()
 remote_mh_cursor.execute(
     'SELECT parent_call, remote_call, heard_time, update_time FROM public.remote_mh')
@@ -100,14 +127,22 @@ tn.write(conf['telnet_user'].encode('ascii') + b"\r")
 tn.read_until(b"password:", timeout=2)
 tn.write(conf['telnet_pw'].encode('ascii') + b"\r")
 tn.read_until(b'Telnet Server\r\n', timeout=20)
-connect_cmd = f"c {node_to_crawl}".encode('ascii')
 
+if auto and not debug:
+    # Get node to crawl from dict
+    node_to_crawl = list(node_to_crawl_info.keys())[0]
+    print(f"Auto crawling node {node_to_crawl}")
+
+connect_cmd = f"c {node_to_crawl}".encode('ascii')
 if not debug:  # Stay local if debugging
     try:
         print(f"Connecting to {node_to_crawl}")
         tn.write(b"\r\n" + connect_cmd + b"\r")
         con_results = tn.read_until(b'Connected to', timeout=20)
-        if con_results == b'\r\n':  # Stuck on local node
+
+        # Stuck on local node
+        if con_results == b'\r\n' or \
+                b"Downlink connect needs port number" in con_results:
             print(f"Couldn't connect to {node_to_crawl}")
             tn.write(b'b\r')
             exit()
@@ -120,6 +155,7 @@ if not debug:  # Stay local if debugging
         tn.write(b'bye\r')
         exit()
 
+# Get available ports
 tn.write("p".encode('ascii') + b'\r')  # Get available ports
 tn.write(b'\n\n\n')
 available_ports_raw = tn.read_until(b'\n\n\n',
@@ -135,30 +171,39 @@ except IndexError:
     print(f"Possible corrupt data received: {available_ports_raw}")
     exit()
 
-# Give menu options on screen
-selected_port = None
-menu_item = 1
-print("Select VHF/UHF port to scan MHeard on")
-for port in available_ports:
-    port = port.decode('utf-8').strip().lstrip(digits)
-    print(f"{menu_item}: {port}")
-    menu_item += 1
+if not auto:
 
-try:
-    selected_port = int(input().strip())
-    port_name = available_ports[selected_port - 1].decode(
-        'utf-8').strip().lstrip(digits)
-except ValueError:
-    print("You didn't enter a valid selection. Closing")
-    tn.write(b'bye\r')
-    exit()
+    # Give menu options on screen
+    selected_port = None
+    menu_item = 1
+    print("Select VHF/UHF port to scan MHeard on")
+    for port in available_ports:
+        port = port.decode('utf-8').strip().lstrip(digits)
+        print(f"{menu_item}: {port}")
+        menu_item += 1
+
+    try:
+        selected_port = int(input().strip())
+    except ValueError:
+        print("You didn't enter a valid selection. Closing")
+        tn.write(b'bye\r')
+        exit()
+
+else:
+    # crawled_node[1]: (crawled_node[0], crawled_node[2], crawled_node[3])
+    selected_port = node_to_crawl_info.get(node_to_crawl)[1]
 
 if selected_port:
+    port_name = available_ports[selected_port - 1].decode(
+        'utf-8').strip().lstrip(digits)
     print(f"Getting MH list for port {selected_port}.")
     mh_command = f"mhu {selected_port}".encode('ascii')
     tn.write(mh_command + b"\r")
     tn.write(b"\r")
     tn.write(b"bye\r")
+else:
+    print("No port selected")
+    exit()
 
 mh_output = None
 try:
@@ -431,6 +476,37 @@ for operator in all_operators:
     if len(operating_bands) > 0:
         all_ops_cusror.execute(
             f"UPDATE public.remote_operators SET bands='{operating_bands}' WHERE remote_call = '{call}';")
+
+# Update the nodes crawled table
+update_crawled_node_cursor = con.cursor()
+if auto and not debug:
+    # Update timestamp of crawled node
+    # crawled_node[1]: (crawled_node[0], crawled_node[2], crawled_node[3])
+
+    node_info = node_to_crawl_info.get(node_to_crawl)
+    id = node_info[0]
+    port = node_info[1]
+    timestamp = node_info[2]
+
+    update_crawled_node_query = f"UPDATE crawled_nodes SET last_crawled = '{now}' WHERE id = '{id}'"
+    update_crawled_node_cursor.execute(update_crawled_node_query)
+elif not debug:
+    read_crawled_nodes.execute(
+        f"SELECT id, node_id, port, last_crawled FROM crawled_nodes WHERE node_id='{node_to_crawl}'"
+    )
+    crawled_nodes = read_crawled_nodes.fetchall()
+
+    existing_ports = []
+    if len(crawled_nodes) > 0:
+        for node in crawled_nodes:
+            existing_ports.append(node[2])
+
+    # Add new item to dictionary
+    if selected_port and node_to_crawl and selected_port not in existing_ports:
+        print(f"Adding {node_to_crawl} to crawled nodes table")
+        update_crawled_node_cursor.execute(
+            "INSERT INTO crawled_nodes (node_id, port, last_crawled) VALUES (%s, %s, %s)",
+            (node_to_crawl, selected_port, now))
 
 con.commit()
 con.close()
