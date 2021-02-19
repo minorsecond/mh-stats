@@ -45,6 +45,8 @@ node_to_crawl = args.node
 auto = args.auto
 conf = get_conf()
 
+node_to_crawl = node_to_crawl.strip().upper()
+
 now = datetime.datetime.now().replace(microsecond=0)
 year = datetime.date.today().year
 
