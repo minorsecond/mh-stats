@@ -525,7 +525,7 @@ elif not debug:  # Write new node
         if selected_port and node_to_crawl and selected_port and last_crawled_port_name is None:
             print("Adding port name to existing row")
             update_crawled_node_cursor.execute(
-                f"UPDATE crawled_nodes SET port_name='{port_name}', last_crawled = '{now}' WHERE id='{nodes_to_crawl_id}'"
+                f"UPDATE crawled_nodes SET port_name='{port_name}', last_crawled = '{now}', needs_check=False WHERE id='{nodes_to_crawl_id}'"
             )
 
     # Add new item to table
