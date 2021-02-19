@@ -204,7 +204,7 @@ if selected_port:
     if last_crawled_port_name and port_name.strip() != last_crawled_port_name.strip():
         print(f"Port has changed for {node_to_crawl}")
         read_crawled_nodes.execute(
-            f"UPDATE crawled_nodes SET needs_check=TRUE WHERE node_id='{node_to_crawl}'")
+            f"UPDATE crawled_nodes SET needs_check=True WHERE node_id='{node_to_crawl}'")
         exit()
 
     print(f"Getting MH list for port {selected_port}.")
@@ -504,7 +504,7 @@ if auto and not debug:
     update_crawled_node_cursor.execute(update_crawled_node_query)
 
     if not last_crawled_port_name:  # Update port name if doesn't exist
-        update_crawled_node_query = f"UPDATE crawled_nodes SET port_name = '{port_name}' WHERE id = '{id}'"
+        update_crawled_node_query = f"UPDATE crawled_nodes SET port_name = '{port_name}', needs_check=False WHERE id = '{id}'"
         update_crawled_node_cursor.execute(update_crawled_node_query)
 
 elif not debug:  # Write new node
