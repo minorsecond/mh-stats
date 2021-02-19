@@ -198,13 +198,13 @@ else:
 
 if selected_port:
     port_name = available_ports[selected_port - 1].decode(
-        'utf-8').strip().lstrip(digits)
+        'utf-8').strip().lstrip(digits).strip()
 
     # Exit if port has changed
     if last_crawled_port_name and port_name.strip() != last_crawled_port_name.strip():
         print(f"Port has changed for {node_to_crawl}")
         read_crawled_nodes.execute(
-            f"UPDATE crawled_nodes SET needs_check='True' WHERE node_id='{node_to_crawl}'")
+            f"UPDATE crawled_nodes SET needs_check=TRUE WHERE node_id='{node_to_crawl}'")
         exit()
 
     print(f"Getting MH list for port {selected_port}.")
