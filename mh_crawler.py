@@ -529,7 +529,7 @@ elif not debug:  # Write new node
             )
 
     # Add new item to table
-    elif len(crawled_node) == 0 and selected_port and node_to_crawl:
+    elif len(crawled_nodes) == 0 and selected_port and node_to_crawl:
         print(f"Adding {node_to_crawl} to crawled nodes table")
         update_crawled_node_cursor.execute(
             "INSERT INTO crawled_nodes (node_id, port, last_crawled, port_name, needs_check) VALUES (%s, %s, %s, %s, %s)",
