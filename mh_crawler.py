@@ -490,40 +490,50 @@ for operator in all_operators:
 
 # Update the nodes crawled table
 update_crawled_node_cursor = con.cursor()
+node_info = node_to_crawl_info.get(node_to_crawl)
+
 if auto and not debug:
     # Update timestamp of crawled node
     # crawled_node[1]: (crawled_node[0], crawled_node[2], crawled_node[3])
 
     print("Updating crawled node timestamp")
-    node_info = node_to_crawl_info.get(node_to_crawl)
-    id = node_info[0]
+    nodes_to_crawl_id = node_info[0]
     port = node_info[1]
     timestamp = node_info[2]
 
-    update_crawled_node_query = f"UPDATE crawled_nodes SET last_crawled = '{now}' WHERE id = '{id}'"
+    update_crawled_node_query = f"UPDATE crawled_nodes SET last_crawled = '{now}' WHERE id = '{nodes_to_crawl_id}'"
     update_crawled_node_cursor.execute(update_crawled_node_query)
 
     if not last_crawled_port_name:  # Update port name if doesn't exist
-        update_crawled_node_query = f"UPDATE crawled_nodes SET port_name = '{port_name}', needs_check=False WHERE id = '{id}'"
+        update_crawled_node_query = f"UPDATE crawled_nodes SET port_name = '{port_name}', needs_check=False WHERE id = '{nodes_to_crawl_id}'"
         update_crawled_node_cursor.execute(update_crawled_node_query)
 
 elif not debug:  # Write new node
     read_crawled_nodes.execute(
-        f"SELECT id, node_id, port, last_crawled FROM crawled_nodes WHERE node_id='{node_to_crawl}'"
+        f"SELECT id, node_id, port, last_crawled FROM crawled_nodes WHERE node_id='{node_to_crawl}' AND port='{selected_port}'"
     )
+
     crawled_nodes = read_crawled_nodes.fetchall()
 
-    existing_ports = []
     if len(crawled_nodes) > 0:
-        for node in crawled_nodes:
-            existing_ports.append(node[2])
+        node = crawled_nodes[0]
+        nodes_to_crawl_id = node[0]
 
-    # Add new item to dictionary
-    if selected_port and node_to_crawl and selected_port not in existing_ports:
+        if selected_port and node_to_crawl and selected_port and last_crawled_port_name is None:
+            print("Adding port name to existing row")
+            update_crawled_node_cursor.execute(
+                f"UPDATE crawled_nodes SET port_name='{port_name}' WHERE id='{nodes_to_crawl_id}'"
+            )
+
+    # Add new item to table
+    elif len(crawled_node) == 0 and selected_port and node_to_crawl:
         print(f"Adding {node_to_crawl} to crawled nodes table")
         update_crawled_node_cursor.execute(
             "INSERT INTO crawled_nodes (node_id, port, last_crawled, port_name, needs_check) VALUES (%s, %s, %s, %s, %s)",
-            (node_to_crawl, selected_port, now, port_name, False))
+            (node_to_crawl, selected_port, now, port_name, False)
+        )
+    else:
+        print(f"Something bad happened. Crawled node results: {crawled_nodes}")
 
 con.commit()
 con.close()
