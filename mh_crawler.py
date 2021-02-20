@@ -18,7 +18,7 @@ from models.db import engine, CrawledNode, RemoteOperator, RemoteDigipeater, \
     RemotelyHeardStation
 
 refresh_days = 14
-debug = True
+debug = False
 
 port_name = None
 
@@ -59,15 +59,16 @@ elif auto and not debug:
     try:
         crawled_nodes = session.query(CrawledNode).filter(
             CrawledNode.last_crawled < twelve_hours_ago).order_by(
-            func.random()).limit(1).one()
-        node_to_crawl_info = {
-            crawled_nodes.node_id: (
-                crawled_nodes.id,
-                crawled_nodes.port,
-                crawled_nodes.last_crawled,
-                crawled_nodes.port_name
-            )
-        }
+            func.random()).limit(1).one_or_none()
+        if crawled_nodes:
+            node_to_crawl_info = {
+                crawled_nodes.node_id: (
+                    crawled_nodes.id,
+                    crawled_nodes.port,
+                    crawled_nodes.last_crawled,
+                    crawled_nodes.port_name
+                )
+            }
     except NoResultFound:
         print("Nothing to crawl")
         exit()
@@ -528,7 +529,6 @@ for operator in all_operators:
             synchronize_session="fetch")
 
 # Update the nodes crawled table
-update_crawled_node_cursor = con.cursor()
 node_info = node_to_crawl_info.get(node_to_crawl)
 
 if auto and not debug:
@@ -552,7 +552,7 @@ if auto and not debug:
 elif not debug:  # Write new node
     crawled_nodes = session.query(CrawledNode).filter(
         CrawledNode.node_id == node_to_crawl,
-        CrawledNode.port == selected_port).one()
+        CrawledNode.port == selected_port).one_or_none()
 
     if crawled_nodes:
         nodes_to_crawl_id = crawled_nodes.id
@@ -565,7 +565,7 @@ elif not debug:  # Write new node
                  CrawledNode.last_crawled: now}, synchronize_session="fetch")
 
     # Add new item to table
-    elif len(crawled_nodes) == 0 and selected_port and node_to_crawl:
+    elif not crawled_nodes and selected_port and node_to_crawl:
         print(f"Adding {node_to_crawl} to crawled nodes table")
         new_crawled_node = CrawledNode(
             node_id=node_to_crawl,
