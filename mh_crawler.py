@@ -13,10 +13,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
 from common import get_info, get_conf
-from models.db import engine, CrawledNode
+from models.db import engine, CrawledNode, RemoteOperator
 
 refresh_days = 14
-debug = False
+debug = True
 
 
 def get_last_heard(call, type):
@@ -64,6 +64,7 @@ con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
 last_crawled_port_name = None
 node_to_crawl_info = {}
 read_crawled_nodes = Session()
+session = Session()
 
 if auto and node_to_crawl:
     print("You can't enter node to crawl & auto mode")
@@ -74,7 +75,7 @@ elif auto and not debug:
     # Get a node that hasn't been crawled in 2 weeks
 
     try:
-        crawled_nodes = read_crawled_nodes.query(CrawledNode).filter(
+        crawled_nodes = session.query(CrawledNode).filter(
             CrawledNode.last_crawled < twelve_hours_ago).order_by(
             func.random()).limit(1).one()
         node_to_crawl_info = {
@@ -154,7 +155,7 @@ if not debug:  # Stay local if debugging
     try:
         print(f"Connecting to {node_to_crawl}")
         tn.write(b"\r\n" + connect_cmd + b"\r")
-        con_results = tn.read_until(b'Connected to', timeout=20)
+        con_results = tn.read_until(b'Connected to', timeout=30)
 
         # Stuck on local node
         if con_results == b'\r\n' or \
@@ -304,8 +305,15 @@ for item in mh_list:
     timestamp = item[1]
 
     try:
-        last_heard = get_last_heard(op_call, "node")[0][1]
-        timedelta = (now - last_heard)
+        last_heard = session.query(RemoteOperator.lastheard). \
+            distinct(RemoteOperator.remote_call, RemoteOperator.lastheard). \
+            filter(RemoteOperator.remote_call == f'{op_call}'). \
+            order_by(RemoteOperator.lastheard).first()
+
+        if last_heard:
+            last_heard = last_heard[0]
+
+            timedelta = (now - last_heard)
     except IndexError:
         timedelta = None
         last_heard = None
@@ -548,5 +556,6 @@ elif not debug:  # Write new node
     else:
         print(f"Something bad happened. Crawled node results: {crawled_nodes}")
 
-con.commit()
+if not debug:
+    con.commit()
 con.close()
