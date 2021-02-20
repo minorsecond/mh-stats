@@ -49,12 +49,6 @@ node_to_crawl_info = {}
 read_crawled_nodes = Session()
 session = Session()
 
-has_children = CrawledNode.remote_operator.any()
-q = session.query(CrawledNode, has_children)
-for id, has_children in q.all():
-    print(id.node_id, has_children)
-input()
-
 if auto and node_to_crawl:
     print("You can't enter node to crawl & auto mode")
     exit()
