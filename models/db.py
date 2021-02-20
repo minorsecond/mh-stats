@@ -57,6 +57,9 @@ class CrawledNode(Base):
     remote_operator = relationship("RemoteOperator",
                                    back_populates="crawled_node",
                                    primaryjoin="RemoteOperator.parent_call==CrawledNode.node_id")
+    remote_digipeater = relationship("RemoteDigipeater",
+                                     back_populates="crawled_node",
+                                     primaryjoin="RemoteDigipeater.parent_call==CrawledNode.node_id")
 
 
 class Digipeater(Base):
@@ -119,7 +122,10 @@ class RemoteDigipeater(Base):
     """
     __tablename__ = 'remote_digipeaters'
     id = Column(BigInteger, primary_key=True)
-    parent_call = Column(String, nullable=False)
+    parent_call = Column(String, ForeignKey("crawled_nodes.node_id"),
+                         nullable=False)
+    crawled_node = relationship(CrawledNode,
+                                back_populates="remote_digipeater")
     call = Column(String, nullable=False)
     lastheard = Column(DateTime, default=datetime.now())
     grid = Column(String, nullable=False)
