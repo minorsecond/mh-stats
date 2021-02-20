@@ -13,6 +13,7 @@ class BadGeocodes(Base):
     """
     Stations that couldn't be geocoded
     """
+    __tablename__ = 'bad_geocodes'
     id = Column(BigInteger, primary_key=True)
     last_checked = Column(DateTime, default=datetime.now())
     reason = Column(String, nullable=False)
@@ -23,6 +24,7 @@ class CrawledNodes(Base):
     """
     Nodes that have been crawled
     """
+    __tablename__ = 'crawled_nodes'
     id = Column(BigInteger, primary_key=True)
     node_id = Column(String, nullable=False)
     port = Column(Integer, nullable=False)
@@ -33,6 +35,7 @@ class Digipeaters(Base):
     """
     Local digipeater data
     """
+    __tablename__ = 'digipeaters'
     id = Column(BigInteger, primary_key=True)
     call = Column(String, nullable=False)
     lastheard = Column(DateTime, default=datetime.now())
@@ -46,6 +49,7 @@ class MHList(Base):
     """
     Local MHeard List
     """
+    __tablename__ = 'mh_list'
     id = Column(BigInteger, primary_key=True)
     timestamp = Column(DateTime, default=datetime.now())
     call = Column(String, nullable=False)
@@ -57,6 +61,7 @@ class Nodes(Base):
     """
     Nodes I am connected to
     """
+    __tablename__ = 'nodes'
     id = Column(BigInteger, primary_key=True)
     call = Column(String, nullable=False)
     parent_call = Column(String, nullable=False)
@@ -72,6 +77,7 @@ class Operator(Base):
     """
     Locally heard operators
     """
+    __tablename__ = 'operators'
     id = Column(BigInteger, primary_key=True)
     call = Column(String, nullable=False)
     lastheard = Column(DateTime, default=datetime.now())
@@ -83,6 +89,7 @@ class RemoteDigipeater(Base):
     """
     Remotely-heard digipeater
     """
+    __tablename__ = 'remote_digipeaters'
     id = Column(BigInteger, primary_key=True)
     parent_call = Column(String, nullable=False)
     call = Column(String, nullable=False)
@@ -98,6 +105,7 @@ class RemoteMH(Base):
     """
     Remotely-heard station
     """
+    __tablename__ = 'remote_mh'
     id = Column(BigInteger, primary_key=True)
     parent_call = Column(String, nullable=False)
     remote_call = Column(String, nullable=False)
@@ -112,7 +120,6 @@ class RemoteOperator(Base):
     """
     Store remotely-heard operator data
     """
-
     __tablename__ = 'remote_operators'
     id = Column(BigInteger, primary_key=True)
     parent_call = Column(String, nullable=False)
