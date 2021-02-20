@@ -102,7 +102,7 @@ for digipeater in existing_digipeaters:
     heard = digipeater.heard
     existing_digipeaters_data[digipeater_call] = (lat, lon, heard)
 
-# Get remote MHeard list
+# Get all remote MHeard list
 existing_remote_mh_results = session.query(RemotelyHeardStation).all()
 
 existing_mh_data = []
@@ -189,7 +189,7 @@ if selected_port:
     port_name = available_ports[selected_port - 1].decode(
         'utf-8').strip().lstrip(digits).strip()
 
-    # Exit if port has changed
+    # Update needs_check flag and exit if port has changed
     if last_crawled_port_name and port_name.strip() != last_crawled_port_name.strip():
         print(f"Port has changed for {node_to_crawl}")
         session.query(CrawledNode).filter(CrawledNode.node_id ==
@@ -198,6 +198,7 @@ if selected_port:
                    synchronize_session='fetch')
         exit()
 
+    # Send the MHU command
     print(f"Getting MH list for port {selected_port}.")
     mh_command = f"mhu {selected_port}".encode('ascii')
     tn.write(mh_command + b"\r")
@@ -209,6 +210,7 @@ else:
 
 mh_output = None
 try:
+    # Read and parse output from telnet
     mh_output = tn.read_until(b'***', timeout=20)
     port_string = f"Port {selected_port}".encode('ascii')
     mh_output = mh_output.split(port_string)[1].strip()
@@ -238,7 +240,7 @@ for index, item in enumerate(mh_output):
 # Convert time to datetime, and get digipeater list
 mh_list = []
 for item in mh_output:
-    if len(item) == 4:
+    if len(item) > 0:
         res = []
         call = item[0].decode('utf-8')
         res.append(call)
@@ -252,7 +254,6 @@ for item in mh_output:
         except ValueError:
             # Got bad time format
             print(f"Error parsing timestamp: {month}-{day}-{year} {time}")
-
             exit()
         try:
             digipeaters = item[4].decode('utf-8').split(',')
@@ -264,16 +265,20 @@ for item in mh_output:
 
 mh_list = sorted(mh_list, key=lambda x: x[1], reverse=False)
 
-# Write to PG
+# Do the MH List Processing
 digipeater_list = {}
 current_op_list = []
 write_cursor = con.cursor()
 for item in mh_list:
     timedelta = None
     info = None
+
+    # Call includes ssid, ie KD5LPB-7
     call = item[0].strip()
+    # Op_call is just the call, ie KD5LPB
     op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
 
+    # Get SSID of call if it exists
     if '-' in call:
         ssid = int(re.sub(r'[^\w]', ' ', call.split('-')[1]))
     else:
@@ -281,6 +286,7 @@ for item in mh_list:
 
     timestamp = item[1]
 
+    # Get last time station was heard
     try:
         last_heard = session.query(RemoteOperator.lastheard). \
             distinct(RemoteOperator.remote_call, RemoteOperator.lastheard). \
@@ -373,6 +379,7 @@ for item in mh_list:
             session.add(remote_operator)
         current_op_list.append(op_call)
 
+    # If operator hasn't been scanned in past refresh_days, update info
     elif timedelta and timedelta.days >= refresh_days and op_call not in current_op_list:
         # add coordinates & grid
 
@@ -387,14 +394,6 @@ for item in mh_list:
         if (lat, lon, grid) != existing_ops_data.get(call):
             print(f"Updating coordinates for {op_call}")
             if point:
-                remote_operator = RemoteOperator(
-                    parent_call=node_to_crawl,
-                    remote_call=op_call,
-                    lastheard=timestamp,
-                    grid=grid,
-                    geom=f'SRID=4326;POINT({lon} {lat})',
-                    port=port_name
-                )
                 session.query(RemoteOperator).filter(
                     RemoteOperator.remote_call == f'{op_call}').update(
                     {RemoteOperator.geom: f"SRID=4326;POINT({lon} {lat})"})
@@ -432,7 +431,7 @@ for digipeater in digipeater_list.items():
             order_by(RemoteDigipeater.lastheard).first()
 
         if last_seen:
-            last_heard = last_seen[0]
+            last_seen = last_seen[0]
             timedelta = (now - last_seen)
 
     except IndexError:
@@ -498,8 +497,10 @@ case_statement = "UPDATE public.remote_mh SET band = CASE " \
 # engine.execute(text(case_statement)).execution_options(autocommit=True)
 session.execute(case_statement)
 
+# Populate bands column for remote_operators table
 all_operators = session.query(RemoteOperator).filter(
-    RemoteOperator.bands is None)
+    RemoteOperator.bands.is_(None))
+
 for operator in all_operators:
     operating_bands = ""
     call = operator.remote_call
@@ -507,7 +508,7 @@ for operator in all_operators:
     bands = operator.bands
 
     all_mh = session.query(RemotelyHeardStation).filter(
-        RemotelyHeardStation.remote_call == f'{call}')
+        RemotelyHeardStation.remote_call.like(f'{call}%'))
 
     if bands:
         operating_bands += bands
