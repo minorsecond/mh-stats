@@ -1,15 +1,20 @@
 from datetime import datetime
 
 from geoalchemy2 import *
-from sqlalchemy import MetaData, engine, Column, BigInteger, String, DateTime, \
-    Integer, Boolean
+from sqlalchemy import Column, BigInteger, String, DateTime, \
+    Integer, Boolean, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 
-metadata = MetaData(engine)
-Base = declarative_base(metadata=metadata)
+engine = create_engine(
+    'postgresql://rwardrup:Rward0232@192.168.3.65/packetmap')
+Base = declarative_base()
+
+__all__ = ["BadGeocode", "CrawledNode", "Digipeater", "LocallyHeardStation",
+           "Node", "Operator", "RemoteDigipeater", "RemotelyHeardStation",
+           "RemoteOperator"]
 
 
-class BadGeocodes(Base):
+class BadGeocode(Base):
     """
     Stations that couldn't be geocoded
     """
@@ -20,7 +25,7 @@ class BadGeocodes(Base):
     node_name = Column(String, nullable=False)
 
 
-class CrawledNodes(Base):
+class CrawledNode(Base):
     """
     Nodes that have been crawled
     """
@@ -29,9 +34,11 @@ class CrawledNodes(Base):
     node_id = Column(String, nullable=False)
     port = Column(Integer, nullable=False)
     last_crawled = Column(DateTime, default=datetime.now())
+    port_name = Column(String, nullable=False)
+    needs_check = Column(Boolean, nullable=False)
 
 
-class Digipeaters(Base):
+class Digipeater(Base):
     """
     Local digipeater data
     """
@@ -45,7 +52,7 @@ class Digipeaters(Base):
     ssid = Column(Integer, nullable=True)
 
 
-class MHList(Base):
+class LocallyHeardStation(Base):
     """
     Local MHeard List
     """
@@ -57,7 +64,7 @@ class MHList(Base):
     op_call = Column(String, nullable=False)
 
 
-class Nodes(Base):
+class Node(Base):
     """
     Nodes I am connected to
     """
@@ -101,7 +108,7 @@ class RemoteDigipeater(Base):
     port = Column(Integer, nullable=False)
 
 
-class RemoteMH(Base):
+class RemotelyHeardStation(Base):
     """
     Remotely-heard station
     """
@@ -129,3 +136,16 @@ class RemoteOperator(Base):
     geom = Column(Geometry(geometry_type='POINT', srid=4326))
     port = Column(Integer, nullable=False)
     bands = Column(String, nullable=True)
+
+
+BadGeocode.__table__.create(engine, checkfirst=True)
+CrawledNode.__table__.create(engine, checkfirst=True)
+Digipeater.__table__.create(engine, checkfirst=True)
+LocallyHeardStation.__table__.create(engine, checkfirst=True)
+Node.__table__.create(engine, checkfirst=True)
+Operator.__table__.create(engine, checkfirst=True)
+RemoteDigipeater.__table__.create(engine, checkfirst=True)
+RemotelyHeardStation.__table__.create(engine, checkfirst=True)
+RemoteOperator.__table__.create(engine, checkfirst=True)
+
+Base.metadata.create_all(engine, checkfirst=True)

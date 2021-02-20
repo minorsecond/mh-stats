@@ -8,8 +8,12 @@ from telnetlib import Telnet
 
 import psycopg2
 from shapely.geometry import Point
+from sqlalchemy import func
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.exc import NoResultFound
 
 from common import get_info, get_conf
+from models.db import engine, CrawledNode
 
 refresh_days = 14
 debug = False
@@ -52,33 +56,37 @@ now = datetime.datetime.now().replace(microsecond=0)
 year = datetime.date.today().year
 
 # Connect to PG
+Session = sessionmaker(bind=engine)
 con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
                        password=conf['pg_pw'], host=conf['pg_host'],
                        port=conf['pg_port'])
 
 last_crawled_port_name = None
 node_to_crawl_info = {}
-read_crawled_nodes = con.cursor()
+read_crawled_nodes = Session()
+
 if auto and node_to_crawl:
     print("You can't enter node to crawl & auto mode")
     exit()
 
 elif auto and not debug:
+    twelve_hours_ago = now - datetime.timedelta(hours=12)
     # Get a node that hasn't been crawled in 2 weeks
-    read_crawled_nodes.execute(
-        f"SELECT id, node_id, port, last_crawled, port_name FROM crawled_nodes WHERE last_crawled < now() - INTERVAL '3 hours' ORDER BY random() LIMIT 1"
-    )
 
-    crawled_nodes = read_crawled_nodes.fetchall()
-    if len(crawled_nodes) > 0:
-        crawled_node = crawled_nodes[0]
+    try:
+        crawled_nodes = read_crawled_nodes.query(CrawledNode).filter(
+            CrawledNode.last_crawled < twelve_hours_ago).order_by(
+            func.random()).limit(1).one()
         node_to_crawl_info = {
-            crawled_node[1]: (
-                crawled_node[0], crawled_node[2], crawled_node[3],
-                crawled_node[4])
+            crawled_nodes.node_id: (
+                crawled_nodes.id,
+                crawled_nodes.port,
+                crawled_nodes.last_crawled,
+                crawled_nodes.port_name
+            )
         }
-        last_crawled_port_name = crawled_node[4]
-    else:
+        input(node_to_crawl_info)
+    except NoResultFound:
         print("Nothing to crawl")
         exit()
 
