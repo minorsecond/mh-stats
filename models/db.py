@@ -53,13 +53,16 @@ class CrawledNode(Base):
 
     received_tx = relationship("RemotelyHeardStation",
                                back_populates="crawled_node",
-                               primaryjoin="RemotelyHeardStation.parent_call==CrawledNode.node_id")
+                               primaryjoin="and_(RemotelyHeardStation.parent_call==CrawledNode.node_id,"
+                                           "RemotelyHeardStation.port==CrawledNode.port_name)")
     remote_operator = relationship("RemoteOperator",
                                    back_populates="crawled_node",
-                                   primaryjoin="RemoteOperator.parent_call==CrawledNode.node_id")
+                                   primaryjoin="and_(RemoteOperator.parent_call==CrawledNode.node_id,"
+                                               "RemoteOperator.port==CrawledNode.port_name)")
     remote_digipeater = relationship("RemoteDigipeater",
                                      back_populates="crawled_node",
-                                     primaryjoin="RemoteDigipeater.parent_call==CrawledNode.node_id")
+                                     primaryjoin="and_(RemoteDigipeater.parent_call==CrawledNode.node_id,"
+                                                 "RemoteDigipeater.port==CrawledNode.port_name)")
 
 
 class Digipeater(Base):

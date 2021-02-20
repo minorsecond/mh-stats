@@ -39,6 +39,7 @@ year = datetime.date.today().year
 
 # Connect to PG
 Session = sessionmaker(bind=engine)
+
 con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
                        password=conf['pg_pw'], host=conf['pg_host'],
                        port=conf['pg_port'])
