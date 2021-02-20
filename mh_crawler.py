@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
 from common import get_info, get_conf
-from models.db import engine, CrawledNode, RemoteOperator
+from models.db import engine, CrawledNode, RemoteOperator, RemoteDigipeater
 
 refresh_days = 14
 debug = True
@@ -412,7 +412,7 @@ for digipeater in digipeater_list.items():
         heard = True
 
     try:
-        ssid = re.sub(r'[^\w]', ' ', digipeater_call.split('-')[1])
+        ssid = int(re.sub(r'[^\w]', ' ', digipeater_call.split('-')[1]))
     except IndexError:
         # No ssid
         ssid = None
@@ -421,8 +421,15 @@ for digipeater in digipeater_list.items():
                              digipeater_call.split('-')[0]).strip()
 
     try:
-        last_seen = get_last_heard(digipeater_call, "digi")[0][1]
-        timedelta = (now - last_seen)
+        last_seen = session.query(RemoteDigipeater.lastheard). \
+            distinct(RemoteDigipeater.call, RemoteDigipeater.lastheard). \
+            filter(RemoteDigipeater.call == f'{digipeater_call}'). \
+            order_by(RemoteDigipeater.lastheard).first()
+
+        if last_seen:
+            last_heard = last_seen[0]
+            timedelta = (now - last_seen)
+
     except IndexError:
         last_seen = None  # New digi
         timedelta = None
@@ -436,16 +443,18 @@ for digipeater in digipeater_list.items():
             print(f"Adding digipeater {digipeater_call}")
             lat = float(digipeater_info[0])
             lon = float(digipeater_info[1])
-            point = Point(lon, lat).wkb_hex
             grid = digipeater_info[2]
 
-            write_cursor.execute("INSERT INTO public.remote_digipeaters "
-                                 "(parent_call, call, lastheard, grid, heard, ssid, geom, port) "
-                                 "VALUES (%s, %s, %s, "
-                                 "%s, %s, %s, st_setsrid(%s::geometry, 4326), %s)",
-                                 (node_to_crawl, digipeater_call, timestamp,
-                                  grid, heard, ssid, point, port_name))
+            remote_digi = RemoteDigipeater(parent_call=node_to_crawl,
+                                           call=digipeater_call,
+                                           lastheard=timestamp,
+                                           grid=grid,
+                                           heard=heard,
+                                           ssid=ssid,
+                                           geom=f'SRID=4326;POINT({lon} {lat})',
+                                           port=port_name)
 
+            session.add(remote_digi)
             added_digipeaters.append(digipeater_call)
 
     elif timedelta and timedelta.days >= refresh_days:

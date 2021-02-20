@@ -105,7 +105,7 @@ class RemoteDigipeater(Base):
     heard = Column(Boolean, nullable=False)
     ssid = Column(Integer, nullable=True)
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
-    port = Column(Integer, nullable=False)
+    port = Column(String, nullable=False)
 
 
 class RemotelyHeardStation(Base):
