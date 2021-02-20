@@ -110,7 +110,6 @@ for row in existing_remote_mh_results:
     call = row.remote_call
     timestamp = row.heard_time
     hms = timestamp.strftime("%H:%M:%S")
-    input(timestamp)
     existing_mh_data.append(f"{call} {hms}")
 
 # Connect to local telnet server
@@ -193,8 +192,10 @@ if selected_port:
     # Exit if port has changed
     if last_crawled_port_name and port_name.strip() != last_crawled_port_name.strip():
         print(f"Port has changed for {node_to_crawl}")
-        read_crawled_nodes.execute(
-            f"UPDATE crawled_nodes SET needs_check=True WHERE node_id='{node_to_crawl}'")
+        session.query(CrawledNode).filter(CrawledNode.node_id ==
+                                          f'{node_to_crawl}'). \
+            update({CrawledNode.needs_check: True},
+                   synchronize_session='fetch')
         exit()
 
     print(f"Getting MH list for port {selected_port}.")
@@ -340,6 +341,12 @@ for item in mh_list:
             except Exception as e:
                 print(f"Error {e} on {call}")
 
+        else:
+            try:
+                info = get_info(call)
+            except Exception as e:
+                print(f"Error {e} on {call}")
+
         if info:
             try:
                 lat = float(info[0])
@@ -380,8 +387,17 @@ for item in mh_list:
         if (lat, lon, grid) != existing_ops_data.get(call):
             print(f"Updating coordinates for {op_call}")
             if point:
-                update_op_query = f"UPDATE public.remote_operators SET geom = st_setsrid('{point}'::geometry, 4326) WHERE remote_call = '{op_call}';"
-                write_cursor.execute(update_op_query)
+                remote_operator = RemoteOperator(
+                    parent_call=node_to_crawl,
+                    remote_call=op_call,
+                    lastheard=timestamp,
+                    grid=grid,
+                    geom=f'SRID=4326;POINT({lon} {lat})',
+                    port=port_name
+                )
+                session.query(RemoteOperator).filter(
+                    RemoteOperator.remote_call == f'{op_call}').update(
+                    {RemoteOperator.geom: f"SRID=4326;POINT({lon} {lat})"})
 
         current_op_list.append(op_call)
 
@@ -458,54 +474,57 @@ for digipeater in digipeater_list.items():
 
             if point:
                 print(f"Updating digipeater coordinates for {digipeater}")
-                update_op_query = "UPDATE public.remote_digipeaters SET geom = st_setsrid(%s::geometry, 4326) WHERE call = %s", (
-                    point, digipeater_call)
-                write_cursor.execute(update_digi_query)
+                session.query(RemoteDigipeater).filter(
+                    RemoteDigipeater.call == f"{digipeater_call}").update(
+                    {RemoteDigipeater.geom: f"SRID=4326;POINT({lon} {lat})"},
+                    synchronize_session="fetch")
 
     # Update timestamp
     if last_seen and last_seen < timestamp:
-        update_digi_query = f"UPDATE public.remote_digipeaters SET lastheard = '{timestamp}', heard = '{heard}' WHERE call = '{digipeater_call}';"
-        write_cursor.execute(update_digi_query)
+        session.query(RemoteDigipeater).filter(
+            RemoteDigipeater.call == f"{digipeater_call}").update(
+            {RemoteDigipeater.lastheard: timestamp},
+            synchronize_session="fetch")
 
 # Get bands for each operator
 print("Updating bands columns")
-write_cursor.execute("UPDATE public.remote_mh SET band = CASE "
-                     "WHEN (port LIKE '%44_.%' OR port LIKE '44_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '70CM' "
-                     "WHEN (port LIKE '%14_.%' OR port LIKE '14_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '2M' "
-                     "WHEN (port LIKE '% 14.%' OR port LIKE '14.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '% 7.%' THEN '20M' "
-                     "WHEN (port LIKE '% 7.%' OR port LIKE '7.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '%14.%%%' THEN '40M' "
-                     "END;")
 
-all_ops_cusror = con.cursor()
-all_mh_cursor = con.cursor()
-all_ops_cusror.execute(
-    "SELECT remote_call, bands from public.remote_operators WHERE bands IS NULL;"
-)
-all_operators = all_ops_cusror.fetchall()
+case_statement = "UPDATE public.remote_mh SET band = CASE " \
+                 "WHEN (port LIKE '%44_.%' OR port LIKE '44_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '70CM' " \
+                 "WHEN (port LIKE '%14_.%' OR port LIKE '14_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '2M' " \
+                 "WHEN (port LIKE '% 14.%' OR port LIKE '14.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '% 7.%' THEN '20M' " \
+                 "WHEN (port LIKE '% 7.%' OR port LIKE '7.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '%14.%%%' THEN '40M' " \
+                 "END;"
+# engine.execute(text(case_statement)).execution_options(autocommit=True)
+session.execute(case_statement)
+
+all_operators = session.query(RemoteOperator).filter(
+    RemoteOperator.bands is None)
 for operator in all_operators:
     operating_bands = ""
-    call = operator[0]
+    call = operator.remote_call
     call = call.split('-')[0]
-    bands = operator[1]
+    bands = operator.bands
 
-    all_mh_cursor.execute(
-        f"SELECT remote_call, band FROM public.remote_mh WHERE remote_call LIKE '{call}%'")
-    all_mh = all_mh_cursor.fetchall()
+    all_mh = session.query(RemotelyHeardStation).filter(
+        RemotelyHeardStation.remote_call == f'{call}')
 
     if bands:
         operating_bands += bands
 
     for mh_item in all_mh:
-        remote_call = mh_item[0]
-        band = mh_item[1]
+        remote_call = mh_item.remote_call
+        band = mh_item.band
 
         if remote_call.split('-')[0] == call and band:
             if band not in operating_bands:
                 operating_bands += f"{band},"
 
     if len(operating_bands) > 0:
-        all_ops_cusror.execute(
-            f"UPDATE public.remote_operators SET bands='{operating_bands}' WHERE remote_call = '{call}';")
+        session.query(RemoteOperator).filter(
+            RemoteOperator.remote_call == f'{call}').update(
+            {RemoteOperator.bands: operating_bands},
+            synchronize_session="fetch")
 
 # Update the nodes crawled table
 update_crawled_node_cursor = con.cursor()
@@ -520,40 +539,46 @@ if auto and not debug:
     port = node_info[1]
     timestamp = node_info[2]
 
-    update_crawled_node_query = f"UPDATE crawled_nodes SET last_crawled = '{now}' WHERE id = '{nodes_to_crawl_id}'"
-    update_crawled_node_cursor.execute(update_crawled_node_query)
+    session.query(CrawledNode).filter(
+        CrawledNode.id == nodes_to_crawl_id).update(
+        {CrawledNode.last_crawled: now}, synchronize_session="fetch")
 
     if not last_crawled_port_name:  # Update port name if doesn't exist
-        update_crawled_node_query = f"UPDATE crawled_nodes SET port_name = '{port_name}', needs_check=False WHERE id = '{nodes_to_crawl_id}'"
-        update_crawled_node_cursor.execute(update_crawled_node_query)
+        session.query(CrawledNode).filter(
+            CrawledNode.id == nodes_to_crawl_id).update(
+            {CrawledNode.port_name: port_name}, synchronize_session="fetch")
 
 elif not debug:  # Write new node
-    read_crawled_nodes.execute(
-        f"SELECT id, node_id, port, last_crawled FROM crawled_nodes WHERE node_id='{node_to_crawl}' AND port='{selected_port}'"
-    )
+    crawled_nodes = session.query(CrawledNode).filter(
+        CrawledNode.node_id == node_to_crawl,
+        CrawledNode.port == selected_port).one()
 
-    crawled_nodes = read_crawled_nodes.fetchall()
-
-    if len(crawled_nodes) > 0:
-        node = crawled_nodes[0]
-        nodes_to_crawl_id = node[0]
+    if crawled_nodes:
+        nodes_to_crawl_id = crawled_nodes.id
 
         if selected_port and node_to_crawl and selected_port and last_crawled_port_name is None:
             print("Adding port name to existing row")
-            update_crawled_node_cursor.execute(
-                f"UPDATE crawled_nodes SET port_name='{port_name}', last_crawled = '{now}', needs_check=False WHERE id='{nodes_to_crawl_id}'"
-            )
+            session.query(CrawledNode).filter(
+                CrawledNode.id == nodes_to_crawl_id).update(
+                {CrawledNode.port_name: port_name,
+                 CrawledNode.last_crawled: now}, synchronize_session="fetch")
 
     # Add new item to table
     elif len(crawled_nodes) == 0 and selected_port and node_to_crawl:
         print(f"Adding {node_to_crawl} to crawled nodes table")
-        update_crawled_node_cursor.execute(
-            "INSERT INTO crawled_nodes (node_id, port, last_crawled, port_name, needs_check) VALUES (%s, %s, %s, %s, %s)",
-            (node_to_crawl, selected_port, now, port_name, False)
+        new_crawled_node = CrawledNode(
+            node_id=node_to_crawl,
+            port=selected_port,
+            last_crawled=now,
+            port_name=port_name,
+            needs_check=False
         )
+        session.add(new_crawled_node)
+
     else:
         print(f"Something bad happened. Crawled node results: {crawled_nodes}")
 
+session.commit()
 if not debug:
     con.commit()
 con.close()
