@@ -7,38 +7,20 @@ from string import digits
 from telnetlib import Telnet
 
 import psycopg2
+from geoalchemy2.shape import to_shape
 from shapely.geometry import Point
 from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
 from common import get_info, get_conf
-from models.db import engine, CrawledNode, RemoteOperator, RemoteDigipeater
+from models.db import engine, CrawledNode, RemoteOperator, RemoteDigipeater, \
+    RemotelyHeardStation
 
 refresh_days = 14
 debug = True
 
-
-def get_last_heard(call, type):
-    """
-    Get last time station was heard
-    :param call: Callsign
-    :param type: Digipeater or Node
-    :return: timestamp
-    """
-
-    cursor = con.cursor()
-    table = None
-    if type == "node":
-        table = "operators"
-    elif type == "digi":
-        table = "digipeaters"
-
-    # noinspection SqlResolve
-    query = f"SELECT DISTINCT on (call, lastheard) call, lastheard FROM public.{table} WHERE call='{call}' ORDER BY lastheard DESC LIMIT 1;"
-    cursor.execute(query)
-    return cursor.fetchall()
-
+port_name = None
 
 parser = argparse.ArgumentParser(description="Crawl BPQ nodes")
 parser.add_argument('--node', metavar='N', type=str, help="Node name to crawl")
@@ -86,7 +68,6 @@ elif auto and not debug:
                 crawled_nodes.port_name
             )
         }
-        input(node_to_crawl_info)
     except NoResultFound:
         print("Nothing to crawl")
         exit()
@@ -98,43 +79,38 @@ elif not node_to_crawl and not auto:
     node_to_crawl = "KD5LPB"
 
 # Get all remote operators
-read_operators = con.cursor()
-read_operators.execute(
-    "SELECT id, parent_call, remote_call,lastheard,grid, ST_X(geom), ST_Y(geom) FROM public.remote_operators")
-existing_ops = read_operators.fetchall()
+existing_ops = session.query(RemoteOperator).all()
 
 existing_ops_data = {}
 for op in existing_ops:
-    remote_call = op[2]
-    lon = op[5]
-    lat = op[6]
+    remote_call = op.remote_call
+    point = to_shape(op.geom)
+    lon = point.x
+    lat = point.y
+
     existing_ops_data[remote_call] = (lat, lon)
 
 # Get all remote digipeaters
-read_digipeaters = con.cursor()
-read_digipeaters.execute(
-    "SELECT parent_call, call, lastheard, grid, heard, ssid, ST_X(geom), ST_Y(geom) FROM public.remote_digipeaters")
-existing_digipeaters = read_digipeaters.fetchall()
+existing_digipeaters = session.query(RemoteDigipeater).all()
 
 existing_digipeaters_data = {}
 for digipeater in existing_digipeaters:
-    digipeater_call = digipeater[1]
-    lon = digipeater[6]
-    lat = digipeater[7]
-    heard = digipeater[4]
+    digipeater_call = digipeater.call
+    point = to_shape(digipeater.geom)
+    lon = point.x
+    lat = point.y
+    heard = digipeater.heard
     existing_digipeaters_data[digipeater_call] = (lat, lon, heard)
 
 # Get remote MHeard list
-remote_mh_cursor = con.cursor()
-remote_mh_cursor.execute(
-    'SELECT parent_call, remote_call, heard_time, update_time FROM public.remote_mh')
-existing_remote_mh_results = remote_mh_cursor.fetchall()
+existing_remote_mh_results = session.query(RemotelyHeardStation).all()
 
 existing_mh_data = []
 for row in existing_remote_mh_results:
-    call = row[1]
-    timestamp = row[2]
+    call = row.remote_call
+    timestamp = row.heard_time
     hms = timestamp.strftime("%H:%M:%S")
+    input(timestamp)
     existing_mh_data.append(f"{call} {hms}")
 
 # Connect to local telnet server
@@ -292,13 +268,13 @@ digipeater_list = {}
 current_op_list = []
 write_cursor = con.cursor()
 for item in mh_list:
+    timedelta = None
     info = None
     call = item[0].strip()
     op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
 
     if '-' in call:
-        ssid = re.sub(r'[^\w]', ' ',
-                      call.split('-')[1])
+        ssid = int(re.sub(r'[^\w]', ' ', call.split('-')[1]))
     else:
         ssid = None
 
@@ -337,16 +313,23 @@ for item in mh_list:
     if f"{call} {hms}" not in existing_mh_data:
         print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
 
-        write_cursor.execute("INSERT INTO public.remote_mh "
-                             "(parent_call, remote_call, heard_time, ssid, update_time, port) "
-                             "VALUES (%s, %s, %s, %s, %s, %s)",
-                             (node_to_crawl, call, timestamp, ssid, now,
-                              port_name))
+        remotely_heard = RemotelyHeardStation(
+            parent_call=node_to_crawl,
+            remote_call=call,
+            heard_time=timestamp,
+            ssid=ssid,
+            update_time=now,
+            port=port_name
+        )
+
+        session.add(remotely_heard)
 
     # Update ops last heard
     if last_heard and timestamp > last_heard:
-        update_op_query = f"UPDATE public.remote_operators SET lastheard = '{timestamp}' WHERE remote_call = '{op_call}';"
-        write_cursor.execute(update_op_query)
+        session.query(RemoteOperator). \
+            filter(RemoteOperator.remote_call == f"{op_call}"). \
+            update({RemoteOperator.lastheard: timestamp},
+                   synchronize_session="fetch")
 
     # Write Ops table if
     if op_call not in existing_ops_data and op_call not in current_op_list:
@@ -370,11 +353,17 @@ for item in mh_list:
 
         if grid:  # No grid means no geocode generally
             print(f"{now} Adding {op_call} to operator table.")
-            write_cursor.execute("INSERT INTO public.remote_operators "
-                                 "(parent_call, remote_call, lastheard, grid, geom, port) "
-                                 "VALUES (%s, %s, %s, %s, st_setsrid(%s::geometry, 4326), %s)",
-                                 (node_to_crawl, op_call, timestamp, grid,
-                                  point, port_name))
+
+            remote_operator = RemoteOperator(
+                parent_call=node_to_crawl,
+                remote_call=op_call,
+                lastheard=timestamp,
+                grid=grid,
+                geom=f'SRID=4326;POINT({lon} {lat})',
+                port=port_name
+            )
+
+            session.add(remote_operator)
         current_op_list.append(op_call)
 
     elif timedelta and timedelta.days >= refresh_days and op_call not in current_op_list:

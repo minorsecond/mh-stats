@@ -5,8 +5,21 @@ from sqlalchemy import Column, BigInteger, String, DateTime, \
     Integer, Boolean, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 
-engine = create_engine(
-    'postgresql://rwardrup:Rward0232@192.168.3.65/packetmap')
+from common import get_conf
+
+debug = True
+
+conf = get_conf()
+
+if debug:
+    con_string = f"postgresql://{conf['pg_user']}:{conf['pg_pw']}@" \
+                 f"{conf['pg_host']}/packetmaptest"
+
+else:
+    con_string = f"postgresql://{conf['pg_user']}:{conf['pg_pw']}@" \
+                 f"{conf['pg_host']}/{conf['pg_db']}"
+
+engine = create_engine(con_string)
 Base = declarative_base()
 
 __all__ = ["BadGeocode", "CrawledNode", "Digipeater", "LocallyHeardStation",
@@ -119,7 +132,7 @@ class RemotelyHeardStation(Base):
     heard_time = Column(DateTime, default=datetime.now())
     ssid = Column(Integer, nullable=True)
     update_time = Column(DateTime, default=datetime.now())
-    port = Column(Integer, nullable=False)
+    port = Column(String, nullable=False)
     band = Column(String, nullable=True)
 
 
@@ -134,7 +147,7 @@ class RemoteOperator(Base):
     lastheard = Column(DateTime, default=datetime.now())
     grid = Column(String, nullable=False)
     geom = Column(Geometry(geometry_type='POINT', srid=4326))
-    port = Column(Integer, nullable=False)
+    port = Column(String, nullable=False)
     bands = Column(String, nullable=True)
 
 
