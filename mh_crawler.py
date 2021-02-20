@@ -17,7 +17,7 @@ from common import get_info, get_conf
 from models.db import engine, CrawledNode, RemoteOperator, RemoteDigipeater, \
     RemotelyHeardStation
 
-refresh_days = 14
+refresh_days = 1
 debug = False
 
 port_name = None
@@ -54,12 +54,12 @@ if auto and node_to_crawl:
     exit()
 
 elif auto and not debug:
-    twelve_hours_ago = now - datetime.timedelta(hours=12)
+    refresh_time = now - datetime.timedelta(days=refresh_days)
     # Get a node that hasn't been crawled in 2 weeks
 
     try:
         crawled_nodes = session.query(CrawledNode).filter(
-            CrawledNode.last_crawled < twelve_hours_ago).order_by(
+            CrawledNode.last_crawled < refresh_time).order_by(
             func.random()).limit(1).one_or_none()
         if crawled_nodes:
             node_to_crawl_info = {
