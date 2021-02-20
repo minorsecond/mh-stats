@@ -341,6 +341,12 @@ for item in mh_list:
             except Exception as e:
                 print(f"Error {e} on {call}")
 
+        else:
+            try:
+                info = get_info(call)
+            except Exception as e:
+                print(f"Error {e} on {call}")
+
         if info:
             try:
                 lat = float(info[0])
