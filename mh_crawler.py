@@ -558,6 +558,10 @@ if auto and not debug:
         CrawledNode.id == nodes_to_crawl_id).update(
         {CrawledNode.last_crawled: now}, synchronize_session="fetch")
 
+    session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
+                                      CrawledNode.needs_check.is_(None)). \
+        update({CrawledNode.needs_check: False}, synchronize_session="fetch")
+
     if not last_crawled_port_name:  # Update port name if doesn't exist
         session.query(CrawledNode).filter(
             CrawledNode.id == nodes_to_crawl_id).update(
@@ -570,6 +574,11 @@ elif not debug:  # Write new node
 
     if crawled_nodes:
         nodes_to_crawl_id = crawled_nodes.id
+
+        session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
+                                          CrawledNode.needs_check.is_(None)). \
+            update({CrawledNode.needs_check: False},
+                   synchronize_session="fetch")
 
         if selected_port and node_to_crawl and selected_port and last_crawled_port_name is None:
             print("Adding port name to existing row")
