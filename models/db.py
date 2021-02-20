@@ -50,6 +50,7 @@ class CrawledNode(Base):
     last_crawled = Column(DateTime, default=datetime.now())
     port_name = Column(String, nullable=False)
     needs_check = Column(Boolean, nullable=False)
+    uid = Column(String, nullable=False)
 
     received_tx = relationship("RemotelyHeardStation",
                                back_populates="crawled_node",
@@ -136,6 +137,7 @@ class RemoteDigipeater(Base):
     ssid = Column(Integer, nullable=True)
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
     port = Column(String, nullable=False)
+    uid = Column(String, nullable=False)
 
 
 class RemotelyHeardStation(Base):
@@ -153,6 +155,7 @@ class RemotelyHeardStation(Base):
     update_time = Column(DateTime, default=datetime.now())
     port = Column(String, nullable=False)
     band = Column(String, nullable=True)
+    uid = Column(String, nullable=False)
 
 
 class RemoteOperator(Base):
@@ -171,6 +174,7 @@ class RemoteOperator(Base):
     geom = Column(Geometry(geometry_type='POINT', srid=4326))
     port = Column(String, nullable=False)
     bands = Column(String, nullable=True)
+    uid = Column(String, nullable=False)
 
 
 BadGeocode.__table__.create(engine, checkfirst=True)

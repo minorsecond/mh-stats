@@ -49,6 +49,12 @@ node_to_crawl_info = {}
 read_crawled_nodes = Session()
 session = Session()
 
+has_children = CrawledNode.remote_operator.any()
+q = session.query(CrawledNode, has_children)
+for id, has_children in q.all():
+    print(id.node_id, has_children)
+input()
+
 if auto and node_to_crawl:
     print("You can't enter node to crawl & auto mode")
     exit()
@@ -328,7 +334,8 @@ for item in mh_list:
             heard_time=timestamp,
             ssid=ssid,
             update_time=now,
-            port=port_name
+            port=port_name,
+            uid=f"{node_to_crawl}-{port_name}"
         )
 
         session.add(remotely_heard)
@@ -375,7 +382,8 @@ for item in mh_list:
                 lastheard=timestamp,
                 grid=grid,
                 geom=f'SRID=4326;POINT({lon} {lat})',
-                port=port_name
+                port=port_name,
+                uid=f"{node_to_crawl}-{port_name}"
             )
 
             session.add(remote_operator)
@@ -458,7 +466,8 @@ for digipeater in digipeater_list.items():
                                            heard=heard,
                                            ssid=ssid,
                                            geom=f'SRID=4326;POINT({lon} {lat})',
-                                           port=port_name)
+                                           port=port_name,
+                                           uid=f"{node_to_crawl}-{port_name}")
 
             session.add(remote_digi)
             added_digipeaters.append(digipeater_call)
@@ -573,7 +582,8 @@ elif not debug:  # Write new node
             port=selected_port,
             last_crawled=now,
             port_name=port_name,
-            needs_check=False
+            needs_check=False,
+            uid=f"{node_to_crawl}-{port_name}"
         )
         session.add(new_crawled_node)
 
