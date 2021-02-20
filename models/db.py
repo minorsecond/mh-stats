@@ -2,8 +2,9 @@ from datetime import datetime
 
 from geoalchemy2 import *
 from sqlalchemy import Column, BigInteger, String, DateTime, \
-    Integer, Boolean, create_engine
+    Integer, Boolean, create_engine, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 
 from common import get_conf
 
@@ -49,6 +50,13 @@ class CrawledNode(Base):
     last_crawled = Column(DateTime, default=datetime.now())
     port_name = Column(String, nullable=False)
     needs_check = Column(Boolean, nullable=False)
+
+    received_tx = relationship("RemotelyHeardStation",
+                               back_populates="crawled_node",
+                               primaryjoin="RemotelyHeardStation.parent_call==CrawledNode.node_id")
+    remote_operator = relationship("RemoteOperator",
+                                   back_populates="crawled_node",
+                                   primaryjoin="RemoteOperator.parent_call==CrawledNode.node_id")
 
 
 class Digipeater(Base):
@@ -127,7 +135,9 @@ class RemotelyHeardStation(Base):
     """
     __tablename__ = 'remote_mh'
     id = Column(BigInteger, primary_key=True)
-    parent_call = Column(String, nullable=False)
+    parent_call = Column(String, ForeignKey("crawled_nodes.node_id"),
+                         nullable=False)
+    crawled_node = relationship(CrawledNode, back_populates="received_tx")
     remote_call = Column(String, nullable=False)
     heard_time = Column(DateTime, default=datetime.now())
     ssid = Column(Integer, nullable=True)
@@ -142,7 +152,10 @@ class RemoteOperator(Base):
     """
     __tablename__ = 'remote_operators'
     id = Column(BigInteger, primary_key=True)
-    parent_call = Column(String, nullable=False)
+    parent_call = Column(String, ForeignKey("crawled_nodes.node_id"),
+                         nullable=False)
+    crawled_node = relationship(CrawledNode,
+                                back_populates="remote_operator")
     remote_call = Column(String, nullable=False)
     lastheard = Column(DateTime, default=datetime.now())
     grid = Column(String, nullable=False)
