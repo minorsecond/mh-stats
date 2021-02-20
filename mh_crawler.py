@@ -9,7 +9,7 @@ from telnetlib import Telnet
 import psycopg2
 from geoalchemy2.shape import to_shape
 from shapely.geometry import Point
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -190,6 +190,16 @@ else:
 if selected_port:
     port_name = available_ports[selected_port - 1].decode(
         'utf-8').strip().lstrip(digits).strip()
+
+    # Add the UID if it doesn't exist
+    crawled_node_uid = node_to_crawl + '-' + port_name
+    session.query(CrawledNode).filter(CrawledNode.node_id == node_to_crawl,
+                                      CrawledNode.port == selected_port,
+                                      or_(CrawledNode.port_name == port_name,
+                                          CrawledNode.port_name.is_(None)),
+                                      CrawledNode.uid.is_(None)). \
+        update({CrawledNode.uid: crawled_node_uid},
+               synchronize_session="fetch")
 
     # Update needs_check flag and exit if port has changed
     if last_crawled_port_name and port_name.strip() != last_crawled_port_name.strip():
