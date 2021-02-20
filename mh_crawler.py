@@ -277,6 +277,67 @@ for item in mh_output:
 
 mh_list = sorted(mh_list, key=lambda x: x[1], reverse=False)
 
+# Update the nodes crawled table
+node_info = node_to_crawl_info.get(node_to_crawl)
+
+if auto and not debug:
+    # Update timestamp of crawled node
+    # crawled_node[1]: (crawled_node[0], crawled_node[2], crawled_node[3])
+
+    print("Updating crawled node timestamp")
+    nodes_to_crawl_id = node_info[0]
+    port = node_info[1]
+    timestamp = node_info[2]
+
+    session.query(CrawledNode).filter(
+        CrawledNode.id == nodes_to_crawl_id).update(
+        {CrawledNode.last_crawled: now}, synchronize_session="fetch")
+
+    session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
+                                      CrawledNode.needs_check.is_(None)). \
+        update({CrawledNode.needs_check: False}, synchronize_session="fetch")
+
+    if not last_crawled_port_name:  # Update port name if doesn't exist
+        session.query(CrawledNode).filter(
+            CrawledNode.id == nodes_to_crawl_id).update(
+            {CrawledNode.port_name: port_name}, synchronize_session="fetch")
+
+elif not debug:  # Write new node
+    crawled_nodes = session.query(CrawledNode).filter(
+        CrawledNode.node_id == node_to_crawl,
+        CrawledNode.port == selected_port).one_or_none()
+
+    if crawled_nodes:
+        nodes_to_crawl_id = crawled_nodes.id
+
+        session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
+                                          CrawledNode.needs_check.is_(None)). \
+            update({CrawledNode.needs_check: False},
+                   synchronize_session="fetch")
+
+        if selected_port and node_to_crawl and selected_port and last_crawled_port_name is None:
+            print("Adding port name to existing row")
+            session.query(CrawledNode).filter(
+                CrawledNode.id == nodes_to_crawl_id).update(
+                {CrawledNode.port_name: port_name,
+                 CrawledNode.last_crawled: now}, synchronize_session="fetch")
+
+    # Add new item to table
+    elif not crawled_nodes and selected_port and node_to_crawl:
+        print(f"Adding {node_to_crawl} to crawled nodes table")
+        new_crawled_node = CrawledNode(
+            node_id=node_to_crawl,
+            port=selected_port,
+            last_crawled=now,
+            port_name=port_name,
+            needs_check=False,
+            uid=f"{node_to_crawl}-{port_name}"
+        )
+        session.add(new_crawled_node)
+
+    else:
+        print(f"Something bad happened. Crawled node results: {crawled_nodes}")
+
 # Do the MH List Processing
 digipeater_list = {}
 current_op_list = []
@@ -541,67 +602,6 @@ for operator in all_operators:
             RemoteOperator.remote_call == f'{call}').update(
             {RemoteOperator.bands: operating_bands},
             synchronize_session="fetch")
-
-# Update the nodes crawled table
-node_info = node_to_crawl_info.get(node_to_crawl)
-
-if auto and not debug:
-    # Update timestamp of crawled node
-    # crawled_node[1]: (crawled_node[0], crawled_node[2], crawled_node[3])
-
-    print("Updating crawled node timestamp")
-    nodes_to_crawl_id = node_info[0]
-    port = node_info[1]
-    timestamp = node_info[2]
-
-    session.query(CrawledNode).filter(
-        CrawledNode.id == nodes_to_crawl_id).update(
-        {CrawledNode.last_crawled: now}, synchronize_session="fetch")
-
-    session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
-                                      CrawledNode.needs_check.is_(None)). \
-        update({CrawledNode.needs_check: False}, synchronize_session="fetch")
-
-    if not last_crawled_port_name:  # Update port name if doesn't exist
-        session.query(CrawledNode).filter(
-            CrawledNode.id == nodes_to_crawl_id).update(
-            {CrawledNode.port_name: port_name}, synchronize_session="fetch")
-
-elif not debug:  # Write new node
-    crawled_nodes = session.query(CrawledNode).filter(
-        CrawledNode.node_id == node_to_crawl,
-        CrawledNode.port == selected_port).one_or_none()
-
-    if crawled_nodes:
-        nodes_to_crawl_id = crawled_nodes.id
-
-        session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
-                                          CrawledNode.needs_check.is_(None)). \
-            update({CrawledNode.needs_check: False},
-                   synchronize_session="fetch")
-
-        if selected_port and node_to_crawl and selected_port and last_crawled_port_name is None:
-            print("Adding port name to existing row")
-            session.query(CrawledNode).filter(
-                CrawledNode.id == nodes_to_crawl_id).update(
-                {CrawledNode.port_name: port_name,
-                 CrawledNode.last_crawled: now}, synchronize_session="fetch")
-
-    # Add new item to table
-    elif not crawled_nodes and selected_port and node_to_crawl:
-        print(f"Adding {node_to_crawl} to crawled nodes table")
-        new_crawled_node = CrawledNode(
-            node_id=node_to_crawl,
-            port=selected_port,
-            last_crawled=now,
-            port_name=port_name,
-            needs_check=False,
-            uid=f"{node_to_crawl}-{port_name}"
-        )
-        session.add(new_crawled_node)
-
-    else:
-        print(f"Something bad happened. Crawled node results: {crawled_nodes}")
 
 session.commit()
 if not debug:
