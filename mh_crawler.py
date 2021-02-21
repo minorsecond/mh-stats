@@ -347,7 +347,7 @@ for item in mh_list:
     info = None
 
     # Call includes ssid, ie KD5LPB-7
-    call = item[0].strip()
+    call = item[0].strip().upper()
     # Op_call is just the call, ie KD5LPB
     op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
 
@@ -511,7 +511,7 @@ for digipeater in digipeater_list.items():
         ssid = None
 
     digipeater_call = re.sub(r'[^\w]', ' ',
-                             digipeater_call.split('-')[0]).strip()
+                             digipeater_call.split('-')[0]).strip().upper()
 
     try:
         last_seen = session.query(RemoteDigipeater.lastheard). \
