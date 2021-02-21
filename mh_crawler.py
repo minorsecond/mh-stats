@@ -453,24 +453,35 @@ for item in mh_list:
 
             session.add(remote_operator)
 
-    # If operator hasn't been scanned in past refresh_days, update info
-    elif timedelta and timedelta.days >= refresh_days and op_call not in current_op_list:
-        # add coordinates & grid
+    elif op_call not in current_op_list:  # Update existing op
+        if timedelta and timedelta.days >= refresh_days:
+            # add coordinates & grid
 
-        info = get_info(call.split('-')[0])
+            info = get_info(call.split('-')[0])
 
-        if info:
-            lat = float(info[0])
-            lon = float(info[1])
-            point = Point(lon, lat).wkb_hex
-            grid = info[2]
+            if info:
+                lat = float(info[0])
+                lon = float(info[1])
+                point = Point(lon, lat).wkb_hex
+                grid = info[2]
 
-        if (lat, lon, grid) != existing_ops_data.get(call):
-            print(f"Updating coordinates for {op_call}")
-            if point:
+                print(f"Updating coordinates for {op_call}")
+                if point:
+                    session.query(RemoteOperator).filter(
+                        RemoteOperator.remote_call == f'{op_call}').update(
+                        {RemoteOperator.parent_call: node_to_crawl,
+                         RemoteOperator.geom: f"SRID=4326;POINT({lon} {lat})",
+                         RemoteOperator.lastheard: timestamp,
+                         RemoteOperator.grid: grid,
+                         RemoteOperator.port: port_name,
+                         RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
+                        synchronize_session="fetch")
+
+            else:  # Update port & uid
                 session.query(RemoteOperator).filter(
                     RemoteOperator.remote_call == f'{op_call}').update(
-                    {RemoteOperator.geom: f"SRID=4326;POINT({lon} {lat})",
+                    {RemoteOperator.parent_call: node_to_crawl,
+                     RemoteOperator.lastheard: timestamp,
                      RemoteOperator.port: port_name,
                      RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
                     synchronize_session="fetch")
