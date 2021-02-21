@@ -252,7 +252,7 @@ for index, item in enumerate(mh_output):
 # Convert time to datetime, and get digipeater list
 mh_list = []
 for item in mh_output:
-    if len(item) > 0:
+    if len(item) > 4:
         res = []
         call = item[0].decode('utf-8')
         res.append(call)
@@ -452,7 +452,6 @@ for item in mh_list:
             )
 
             session.add(remote_operator)
-        current_op_list.append(op_call)
 
     # If operator hasn't been scanned in past refresh_days, update info
     elif timedelta and timedelta.days >= refresh_days and op_call not in current_op_list:
@@ -473,7 +472,7 @@ for item in mh_list:
                     RemoteOperator.remote_call == f'{op_call}').update(
                     {RemoteOperator.geom: f"SRID=4326;POINT({lon} {lat})"})
 
-        current_op_list.append(op_call)
+    current_op_list.append(op_call)
 
 # Write digipeaters table
 added_digipeaters = []
@@ -580,7 +579,7 @@ all_operators = session.query(RemoteOperator).filter(
 for operator in all_operators:
     operating_bands = ""
     call = operator.remote_call
-    call = call.split('-')[0]
+    call = call.split('-')[0].strip()
     bands = operator.bands
 
     all_mh = session.query(RemotelyHeardStation).filter(
