@@ -477,14 +477,15 @@ for item in mh_list:
                          RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
                         synchronize_session="fetch")
 
-            else:  # Update port & uid
-                session.query(RemoteOperator).filter(
-                    RemoteOperator.remote_call == f'{op_call}').update(
-                    {RemoteOperator.parent_call: node_to_crawl,
-                     RemoteOperator.lastheard: timestamp,
-                     RemoteOperator.port: port_name,
-                     RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
-                    synchronize_session="fetch")
+        else:  # Update port & uid
+            print(f"Updating entry for {op_call}")
+            session.query(RemoteOperator).filter(
+                RemoteOperator.remote_call == f'{op_call}').update(
+                {RemoteOperator.parent_call: node_to_crawl,
+                 RemoteOperator.lastheard: timestamp,
+                 RemoteOperator.port: port_name,
+                 RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
+                synchronize_session="fetch")
 
     current_op_list.append(op_call)
 
