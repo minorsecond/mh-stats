@@ -470,7 +470,10 @@ for item in mh_list:
             if point:
                 session.query(RemoteOperator).filter(
                     RemoteOperator.remote_call == f'{op_call}').update(
-                    {RemoteOperator.geom: f"SRID=4326;POINT({lon} {lat})"})
+                    {RemoteOperator.geom: f"SRID=4326;POINT({lon} {lat})",
+                     RemoteOperator.port: port_name,
+                     RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
+                    synchronize_session="fetch")
 
     current_op_list.append(op_call)
 
