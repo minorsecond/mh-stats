@@ -16,7 +16,7 @@ args = parser.parse_args()
 node_to_crawl = args.node
 conf = get_conf()
 
-now = datetime.datetime.now().replace(microsecond=0)
+now = datetime.datetime.utcnow().replace(microsecond=0)
 refresh_days = 7
 
 # Connect to PG
