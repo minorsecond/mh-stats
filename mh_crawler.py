@@ -34,7 +34,7 @@ conf = get_conf()
 if node_to_crawl:
     node_to_crawl = node_to_crawl.strip().upper()
 
-now = datetime.datetime.now().replace(microsecond=0)
+now = datetime.datetime.utcnow().replace(microsecond=0)
 year = datetime.date.today().year
 
 # Connect to PG
