@@ -278,7 +278,7 @@ for node_name_pair in clean_call_list:
                 # Update attempt time
                 print(
                     f"Repeated failure geocoding node {node_name_string}. Updating last checked time.")
-                bad_geocode_update_query = f"UPDATE public.bad_geocodes SET last_checked=now() WHERE node_name = '{node_name_string}';"
+                bad_geocode_update_query = f"UPDATE public.bad_geocodes SET last_checked='{now}' WHERE node_name = '{node_name_string}';"
                 write_bad_geocodes.execute(bad_geocode_update_query)
 
         elif days_lapsed < refresh_days:
