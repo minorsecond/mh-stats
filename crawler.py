@@ -248,7 +248,7 @@ for node_name_pair in clean_call_list:
                         if point:
                             print(f"Updating node {base_call}")
                             update_node_query = f"UPDATE public.nodes SET geom=st_setsrid('{point}'::geometry, 4326), " \
-                                                f"last_check = now()," \
+                                                f"last_check = '{last_check}'," \
                                                 f"node_name = '{node_part}'" \
                                                 f" WHERE call = '{base_call}'"
                             write_first_order_nodes.execute(update_node_query)
