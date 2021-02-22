@@ -147,7 +147,7 @@ clean_call_list = clean_calls(calls)
 print(f"{len(first_order_nodes)} exist in DB")
 
 print(f"Processing {len(clean_call_list)} records from BPQ")
-
+new_nodes = 0
 for node_name_pair in clean_call_list:
     base_call = None
     point = None
@@ -172,7 +172,10 @@ for node_name_pair in clean_call_list:
         if not last_checked:  # Might be in bad geocodes table
             last_checked = bad_geocode_calls.get(node_name_string)
 
-        days_lapsed = (now - last_checked).days
+        try:
+            days_lapsed = (now - last_checked).days
+        except TypeError:
+            days_lapsed = None
 
         # Add new node
         if (days_lapsed and days_lapsed >= refresh_days) or not days_lapsed:
@@ -231,8 +234,8 @@ for node_name_pair in clean_call_list:
                                     base_call, parent_call, last_check,
                                     ssid, path, order, grid, node_part))
 
-                            input(f"Added {base_call} to node table")
-
+                            print(f"Added {base_call} to node table")
+                            new_nodes += 1
                             # Remove from bad geocode table
                             if base_call in bad_geocode_calls:
                                 write_bad_geocodes.executef(
@@ -284,10 +287,10 @@ for node_name_pair in clean_call_list:
                 f" since last checked")
         processed_node_names.append(base_call)
 
-if processed_node_names == 0:
+if new_nodes == 0:
     print("No nodes added")
 else:
-    print(f"Processed {len(processed_node_names)} nodes")
+    print(f"Processed {new_nodes} nodes")
 
 if updated_counter == 0:
     print("No nodes updated")
