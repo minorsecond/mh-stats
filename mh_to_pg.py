@@ -41,7 +41,7 @@ con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
                        password=conf['pg_pw'], host=conf['pg_host'],
                        port=conf['pg_port'])
 
-now = datetime.datetime.now().replace(microsecond=0)
+now = datetime.datetime.utcnow().replace(microsecond=0)
 year = datetime.date.today().year
 
 tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
