@@ -178,7 +178,8 @@ for node_name_pair in clean_call_list:
             days_lapsed = None
 
         # Add new node
-        if (days_lapsed and days_lapsed >= refresh_days) or not days_lapsed:
+        if (
+                days_lapsed and days_lapsed >= refresh_days) or days_lapsed is None:
             part = 0
             for check_call in [name_first_part, name_second_part]:
                 if check_call:
