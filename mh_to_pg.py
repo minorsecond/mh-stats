@@ -85,7 +85,12 @@ for item in output:
     day = item[2].decode('utf-8')
     time = item[3].decode('utf-8')
 
-    res.append(datetime.datetime.strptime(f"{month} {day} {year} {time}", "%b %d %Y %H:%M:%S"))
+    ymd = datetime.datetime.strptime(f"{month} {day} {year} {time}",
+                                     "%b %d %Y %H:%M:%S")
+    if ymd > datetime.datetime.now():
+        ymd = datetime.datetime.strptime(f"{month} {day} {year - 1} {time}",
+                                         "%b %d %Y %H:%M:%S")
+    res.append(ymd)
     try:
         digipeaters = item[4].decode('utf-8').split(',')
         res.append(digipeaters)

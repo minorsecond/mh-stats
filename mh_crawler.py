@@ -260,9 +260,13 @@ for item in mh_output:
         day = item[2].decode('utf-8')
         time = item[3].decode('utf-8')
         try:
-            res.append(
-                datetime.datetime.strptime(f"{month} {day} {year} {time}",
-                                           "%b %d %Y %H:%M:%S"))
+            ymd = datetime.datetime.strptime(f"{month} {day} {year} {time}",
+                                             "%b %d %Y %H:%M:%S")
+            if ymd > datetime.datetime.now():  # Timestamp is prob from last year
+                ymd = datetime.datetime.strptime(
+                    f"{month} {day} {year - 1} {time}",
+                    "%b %d %Y %H:%M:%S")
+            res.append(ymd)
         except ValueError:
             # Got bad time format
             print(f"Error parsing timestamp: {month}-{day}-{year} {time}")
