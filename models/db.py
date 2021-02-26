@@ -33,7 +33,7 @@ class BadGeocode(Base):
     Stations that couldn't be geocoded
     """
     __tablename__ = 'bad_geocodes'
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     last_checked = Column(DateTime, default=datetime.now())
     reason = Column(String, nullable=False)
     node_name = Column(String, nullable=False)
@@ -44,7 +44,7 @@ class CrawledNode(Base):
     Nodes that have been crawled
     """
     __tablename__ = 'crawled_nodes'
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     node_id = Column(String, nullable=False)
     port = Column(Integer, nullable=False)
     last_crawled = Column(DateTime, default=datetime.now())
@@ -71,7 +71,7 @@ class Digipeater(Base):
     Local digipeater data
     """
     __tablename__ = 'digipeaters'
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     call = Column(String, nullable=False)
     lastheard = Column(DateTime, default=datetime.now())
     grid = Column(String, nullable=False)
@@ -85,7 +85,7 @@ class LocallyHeardStation(Base):
     Local MHeard List
     """
     __tablename__ = 'mh_list'
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     timestamp = Column(DateTime, default=datetime.now())
     call = Column(String, nullable=False)
     digipeaters = Column(String, nullable=True)
@@ -97,7 +97,7 @@ class Node(Base):
     Nodes I am connected to
     """
     __tablename__ = 'nodes'
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     call = Column(String, nullable=False)
     parent_call = Column(String, nullable=False)
     last_check = Column(DateTime, default=datetime.now())
@@ -113,7 +113,7 @@ class Operator(Base):
     Locally heard operators
     """
     __tablename__ = 'operators'
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     call = Column(String, nullable=False)
     lastheard = Column(DateTime, default=datetime.now())
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
@@ -125,7 +125,7 @@ class RemoteDigipeater(Base):
     Remotely-heard digipeater
     """
     __tablename__ = 'remote_digipeaters'
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     parent_call = Column(String, ForeignKey("crawled_nodes.node_id"),
                          nullable=False)
     crawled_node = relationship(CrawledNode,
@@ -145,7 +145,7 @@ class RemotelyHeardStation(Base):
     Remotely-heard station
     """
     __tablename__ = 'remote_mh'
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     parent_call = Column(String, ForeignKey("crawled_nodes.node_id"),
                          nullable=False)
     crawled_node = relationship(CrawledNode, back_populates="received_tx")
@@ -163,7 +163,7 @@ class RemoteOperator(Base):
     Store remotely-heard operator data
     """
     __tablename__ = 'remote_operators'
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     parent_call = Column(String, ForeignKey("crawled_nodes.node_id"),
                          nullable=False)
     crawled_node = relationship(CrawledNode,
