@@ -140,6 +140,12 @@ write_cursor = con.cursor()
 for item in radio_mh_list:
     call = item[0].strip()
     op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
+
+    try:
+        ssid = re.sub(r'[^\w]', ' ', call.split('-')[1].strip())
+    except IndexError:
+        ssid = None
+
     timestamp = item[1]
 
     try:
@@ -168,7 +174,8 @@ for item in radio_mh_list:
     if f"{call} {hms}" not in existing_mh_data:
         print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
         write_cursor.execute(
-            f"INSERT INTO public.mh_list (timestamp,call,digipeaters,op_call) VALUES ('{timestamp}','{call}','{digipeaters}', '{op_call}')")
+            "INSERT INTO public.mh_list (timestamp,call,digipeaters,op_call, ssid) VALUES (%s, %s, %s, %s, %s)",
+            (timestamp, call, digipeaters, op_call, ssid))
 
     # Update ops last heard
     if last_heard and timestamp > last_heard:
