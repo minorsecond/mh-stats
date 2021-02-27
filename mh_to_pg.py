@@ -5,41 +5,23 @@ import datetime
 import re
 from telnetlib import Telnet
 
-import psycopg2
 from shapely.geometry import Point
+from sqlalchemy import func, desc
+from sqlalchemy.orm import sessionmaker
 
 from common import get_info, get_conf
+from models.db import engine, LocallyHeardStation, Operator, \
+    Digipeater
 
 refresh_days = 7
 
 conf = get_conf()
 
-
-def get_last_heard(call, type):
-    """
-    Get last time station was heard
-    :param call: Callsign
-    :param type: Digipeater or Node
-    :return: timestamp
-    """
-
-    cursor = con.cursor()
-    table = None
-    if type == "node":
-        table = "operators"
-    elif type == "digi":
-        table = "digipeaters"
-
-    # noinspection SqlResolve
-    query = f"SELECT DISTINCT on (call, lastheard) call, lastheard FROM public.{table} WHERE call='{call}' ORDER BY lastheard DESC LIMIT 1;"
-    cursor.execute(query)
-    return cursor.fetchall()
-
+# Connect to PG
+Session = sessionmaker(bind=engine)
+session = Session()
 
 # Connect to PG
-con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
-                       password=conf['pg_pw'], host=conf['pg_host'],
-                       port=conf['pg_port'])
 
 now = datetime.datetime.utcnow().replace(microsecond=0)
 year = datetime.date.today().year
@@ -100,23 +82,21 @@ for item in output:
     radio_mh_list.append(res)
 
 # Write to PG, first get existing data to check for duplicates
-read_mh = con.cursor()
-read_mh.execute("SELECT * FROM public.mh_list")
-existing_mh = read_mh.fetchall()
+existing_mh = session.query(LocallyHeardStation.call,
+                            LocallyHeardStation.timestamp).all()
 
 existing_mh_data = []
 for row in existing_mh:
-    call = row[2]
-    timestamp = row[1]
+    call = row.call
+    timestamp = row.timestamp
     hms = timestamp.strftime("%H:%M:%S")
     existing_mh_data.append(f"{call} {hms}")
 
 radio_mh_list = sorted(radio_mh_list, key=lambda x: x[1], reverse=False)
 
-read_operators = con.cursor()
-read_operators.execute(
-    "SELECT id, call, ST_X(geom), ST_Y(geom) FROM public.operators")
-existing_ops = read_operators.fetchall()
+existing_ops = session.query(Operator.id, Operator.call,
+                             func.st_x(Operator.geom),
+                             func.st_y(Operator.geom)).all()
 
 existing_ops_data = {}
 for op in existing_ops:
@@ -125,10 +105,10 @@ for op in existing_ops:
     lat = op[3]
     existing_ops_data[call] = (lat, lon)
 
-read_digipeaters = con.cursor()
-read_digipeaters.execute(
-    "SELECT call, ST_X(geom), ST_Y(geom), heard FROM public.digipeaters")
-existing_digipeaters = read_digipeaters.fetchall()
+existing_digipeaters = session.query(Digipeater.call,
+                                     func.st_x(Digipeater.geom),
+                                     func.st_y(Digipeater.geom),
+                                     Digipeater.heard).all()
 
 existing_digipeaters_data = {}
 for digipeater in existing_digipeaters:
@@ -141,21 +121,28 @@ for digipeater in existing_digipeaters:
 # Write to PG
 digipeater_list = {}
 current_op_list = []
-write_cursor = con.cursor()
 for item in radio_mh_list:
     call = item[0].strip()
     op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
 
     try:
         ssid = re.sub(r'[^\w]', ' ', call.split('-')[1].strip())
-    except IndexError:
+        ssid = int(ssid)
+    except IndexError or TypeError:
         ssid = None
 
     timestamp = item[1]
 
     try:
-        last_heard = get_last_heard(op_call, "node")[0][1]
-        timedelta = (now - last_heard)
+        last_heard = session.query(Operator.lastheard). \
+            filter(Operator.call == op_call). \
+            order_by(desc(Operator.lastheard)).first()
+        if last_heard:
+            last_heard = last_heard[0]
+            timedelta = (now - last_heard)
+        else:
+            last_heard = None
+            timedelta = None
     except IndexError:
         timedelta = None
         last_heard = None
@@ -178,14 +165,20 @@ for item in radio_mh_list:
     # Write MH table
     if f"{call} {hms}" not in existing_mh_data:
         print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
-        write_cursor.execute(
-            "INSERT INTO public.mh_list (timestamp,call,digipeaters,op_call, ssid) VALUES (%s, %s, %s, %s, %s)",
-            (timestamp, call, digipeaters, op_call, ssid))
+
+        new_mh_entry = LocallyHeardStation(
+            timestamp=timestamp,
+            call=call,
+            digipeaters=digipeaters,
+            op_call=op_call,
+            ssid=ssid
+        )
+        session.add(new_mh_entry)
 
     # Update ops last heard
     if last_heard and timestamp > last_heard:
-        update_op_query = f"UPDATE public.operators SET lastheard = '{timestamp}' WHERE call = '{op_call}';"
-        write_cursor.execute(update_op_query)
+        session.query(Operator).filter(Operator.call == op_call).update(
+            {Operator.lastheard: last_heard}, synchronize_session="fetch")
 
     # Write Ops table if
     if op_call not in existing_ops_data and op_call not in current_op_list:
@@ -195,20 +188,20 @@ for item in radio_mh_list:
         if info:
             lat = float(info[0])
             lon = float(info[1])
-            point = Point(lon, lat).wkb_hex
             grid = info[2]
 
-        print(f"{now} Adding {op_call} to operator table.")
-        if point:
-            write_cursor.execute(
-                "INSERT INTO operators (call, lastheard, geom, grid) VALUES (%s, %s, st_setsrid(%s::geometry, 4326), %s)",
-                (op_call, timestamp, point, grid)
+            print(f"{now} Adding {op_call} to operator table.")
+            new_operator = Operator(
+                call=op_call,
+                lastheard=timestamp,
+                geom=f'SRID=4326;POINT({lon} {lat})',
+                grid=grid
             )
-            # write_cursor.execute(
-            #    "INSERT INTO public.operators (call, lastheard, geom, grid) VALUES ('{op_call}', '{timestamp}', st_setsrid('{point}'::geometry, 4326), '{grid}')")
+            session.add(new_operator)
             current_op_list.append(op_call)
 
-    elif timedelta and timedelta.days >= refresh_days and op_call not in current_op_list:
+    elif timedelta and timedelta.days >= refresh_days and op_call not in \
+            current_op_list:
         # add coordinates & grid
 
         info = get_info(call.split('-')[0])
@@ -221,8 +214,9 @@ for item in radio_mh_list:
 
         if (lat, lon, grid) != existing_ops_data.get(call):
             print(f"Updating coordinates for {op_call}")
-            update_op_query = f"UPDATE public.operators SET geom = st_setsrid('{point}'::geometry, 4326) WHERE call = '{op_call}';"
-            write_cursor.execute(update_op_query)
+            session.query(Operator).filter(Operator.call == op_call).update(
+                {Operator.geom: f'SRID=4326;POINT({lon} {lat})'},
+                synchronize_session="fetch")
 
         current_op_list.append(op_call)
 
@@ -243,15 +237,24 @@ for digipeater in digipeater_list.items():
 
     try:
         ssid = re.sub(r'[^\w]', ' ', digipeater_call.split('-')[1])
-    except IndexError:
+        ssid = int(ssid)
+    except IndexError or TypeError:
         # No ssid
         ssid = None
 
-    digipeater_call = re.sub(r'[^\w]', ' ', digipeater_call.split('-')[0]).strip()
+    digipeater_call = re.sub(r'[^\w]', ' ', digipeater_call.split('-')[0]). \
+        strip()
 
     try:
-        last_seen = get_last_heard(digipeater_call, "digi")[0][1]
-        timedelta = (now - last_seen)
+        last_seen = session.query(Digipeater.lastheard).filter(
+            Digipeater.call == digipeater_call).order_by(
+            desc(Digipeater.lastheard)).first()
+        if last_seen:
+            last_seen = last_seen[0]
+            timedelta = (now - last_seen)
+        else:
+            last_seen = None
+            timedelta = None
     except IndexError:
         last_seen = None  # New digi
         timedelta = None
@@ -265,15 +268,18 @@ for digipeater in digipeater_list.items():
             print(f"Adding digipeater {digipeater_call}")
             lat = float(digipeater_info[0])
             lon = float(digipeater_info[1])
-            point = Point(lon, lat).wkb_hex
             grid = digipeater_info[2]
 
-            write_cursor.execute("INSERT INTO public.digipeaters "
-                                 "(call, lastheard, grid, geom, heard, ssid) "
-                                 "VALUES (%s, %s, %s, "
-                                 "st_setsrid(%s::geometry, 4326), %s, %s)",
-                                 (digipeater_call, timestamp, grid, point,
-                                  heard, ssid))
+            new_digipeater = Digipeater(
+                call=digipeater_call,
+                lastheard=timestamp,
+                grid=grid,
+                geom=f'SRID=4326;POINT({lon} {lat})',
+                heard=heard,
+                ssid=ssid
+            )
+
+            session.add(new_digipeater)
 
             added_digipeaters.append(digipeater_call)
 
@@ -287,14 +293,18 @@ for digipeater in digipeater_list.items():
             point = Point(lon, lat).wkb_hex
             grid = digipeater_info[2]
             print(f"Updating digipeater coordinates for {digipeater}")
-            update_op_query = "UPDATE public.digipeaters SET geom = st_setsrid(%s::geometry, 4326) WHERE call = %s", (
-                point, digipeater_call)
-            write_cursor.execute(update_digi_query)
+
+            session.query(Digipeater). \
+                filter(Digipeater.call == digipeater_call). \
+                update({Digipeater.geom: f'SRID=4326;POINT({lon} {lat})'},
+                       synchronize_session="fetch")
 
     # Update timestamp
     if last_seen and last_seen < timestamp:
-        update_digi_query = f"UPDATE public.digipeaters SET lastheard = '{timestamp}', heard = '{heard}' WHERE call = '{digipeater_call}';"
-        write_cursor.execute(update_digi_query)
+        session.query(Digipeater).filter(
+            Digipeater.call == digipeater_call).update(
+            {Digipeater.lastheard: timestamp, Digipeater.heard: heard},
+            synchronize_session="fetch")
 
-con.commit()
-con.close()
+session.commit()
+session.close()

@@ -5,10 +5,13 @@ import datetime
 import re
 from telnetlib import Telnet
 
-import psycopg2
-from shapely.geometry import Point
+from sqlalchemy.orm import sessionmaker
 
 from common import get_info, get_conf
+from models.db import engine, Node, BadGeocode
+
+Session = sessionmaker(bind=engine)
+session = Session()
 
 parser = argparse.ArgumentParser(description="Get node to crawl")
 parser.add_argument('--node', metavar='N', type=str, help="Node name to crawl")
@@ -20,29 +23,25 @@ now = datetime.datetime.utcnow().replace(microsecond=0)
 refresh_days = 7
 
 # Connect to PG
-con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
-                       password=conf['pg_pw'], host=conf['pg_host'],
-                       port=conf['pg_port'])
 
 year = datetime.date.today().year
 
-read_first_order_node_cursor = con.cursor()
-read_first_order_node_cursor.execute('SELECT call, last_check FROM '
-                                     'public.nodes WHERE level=1')
-first_order_results = read_first_order_node_cursor.fetchall()
-
-read_bad_geocodes_cursor = con.cursor()
-read_bad_geocodes_cursor.execute('SELECT node_name, last_checked FROM '
-                                 'public.bad_geocodes')
-bad_geocode_results = read_bad_geocodes_cursor.fetchall()
+first_order_results = session.query(Node.call, Node.last_check).filter(
+    Node.level == 1).all()
+bad_geocode_results = session.query(BadGeocode.node_name,
+                                    BadGeocode.last_checked).all()
 
 first_order_nodes = {}
 for node in first_order_results:
-    first_order_nodes[node[0].strip()] = node[1]
+    node_call = node.call.strip()
+    node_last_check = node.last_check
+    first_order_nodes[node_call] = node_last_check
 
 bad_geocode_calls = {}
 for bad_call in bad_geocode_results:
-    bad_geocode_calls[(bad_call[0])] = bad_call[1]
+    bad_geocode_node_name = bad_call.node_name.strip()
+    bad_geocode_last_checked = bad_call.last_checked
+    bad_geocode_calls[bad_geocode_node_name] = bad_geocode_last_checked
 
 # Connect to local telnet server
 tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
@@ -141,8 +140,6 @@ no_geocode_counter = 0
 added_counter = 0
 updated_counter = 0
 
-write_first_order_nodes = con.cursor()
-write_bad_geocodes = con.cursor()
 clean_call_list = clean_calls(calls)
 print(f"{len(first_order_nodes)} exist in DB")
 
@@ -150,7 +147,8 @@ print(f"Processing {len(clean_call_list)} records from BPQ")
 new_nodes = 0
 for node_name_pair in clean_call_list:
     base_call = None
-    point = None
+    lon = None
+    lat = None
     grid = None
     ssid = None
     name_first_part = node_name_pair[0].decode('utf-8')
@@ -198,6 +196,7 @@ for node_name_pair in clean_call_list:
                         if '-' in check_call:
                             ssid = re.sub(r'[^\w]', ' ',
                                           check_call.split('-')[1])
+                            ssid = int(ssid)
                         else:
                             ssid = None
 
@@ -207,12 +206,10 @@ for node_name_pair in clean_call_list:
                             lat = float(info[0])
                             lon = float(info[1])
                             grid = info[2]
-                            point = Point(lon, lat).wkb_hex
                             added_counter += 1
                             print(f"Got coords for {base_call}")
                         except ValueError:
                             print(f"Error getting coords for {base_call}")
-                            point = None
 
                         node_par = None
                         if part == 0:
@@ -224,35 +221,42 @@ for node_name_pair in clean_call_list:
                         print(f"Couldn't get info for {call_part}")
 
                     if base_call not in first_order_nodes and base_call not in processed_calls:
-                        if point:
-                            write_first_order_nodes.execute(
-                                f"INSERT INTO public.nodes "
-                                f"(call, parent_call, last_check, "
-                                f"geom, ssid, path, level, grid, node_name) VALUES "
-                                f"(%s, %s, %s, "
-                                f"st_setsrid('{point}'::geometry, 4326), "
-                                f"%s, %s, %s, %s, %s)", (
-                                    base_call, parent_call, last_check,
-                                    ssid, path, order, grid, node_part))
+                        if lon is not None and lat is not None:
+
+                            new_node = Node(
+                                call=base_call,
+                                parent_call=parent_call,
+                                last_check=last_check,
+                                geom=f'SRID=4326;POINT({lon} {lat})',
+                                ssid=ssid,
+                                path=path,
+                                level=order,
+                                grid=grid,
+                                node_name=node_part
+                            )
+
+                            session.add(new_node)
 
                             print(f"Added {base_call} to node table")
                             new_nodes += 1
                             # Remove from bad geocode table
                             if base_call in bad_geocode_calls:
-                                write_bad_geocodes.executef(
-                                    f"DELETE FROM public.bad_geocodes WHERE node_name='{node_name_string}'")
+                                session.query(BadGeocode).filter(
+                                    BadGeocode.node_name == node_name_string).delete()
                             break
 
                         processed_calls.append(base_call)
 
                     else:  # Update node that exists in node table
-                        if point:
+                        if lon is not None and lat is not None:
                             print(f"Updating node {base_call}")
-                            update_node_query = f"UPDATE public.nodes SET geom=st_setsrid('{point}'::geometry, 4326), " \
-                                                f"last_check = '{last_check}'," \
-                                                f"node_name = '{node_part}'" \
-                                                f" WHERE call = '{base_call}'"
-                            write_first_order_nodes.execute(update_node_query)
+                            session.query(Node). \
+                                filter(Node.call == base_call). \
+                                update(
+                                {Node.geom: f'SRID=4326;POINT({lon} {lat})',
+                                 Node.last_check: last_check,
+                                 Node.node_name: base_call},
+                                synchronize_session="fetch")
                             break
                         else:
                             print(f"Couldn't geocode {base_call}")
@@ -261,26 +265,30 @@ for node_name_pair in clean_call_list:
                 part += 1
 
             # Don't add to bad geocode table if we have coords
-            if not point and (
+            if lat is None or lon is None and (
                     node_name_string not in bad_geocode_calls and base_call not in first_order_nodes):
                 print(
                     f"Couldn't get coords for {node_name_string}. Adding to bad_geocodes table.")
-                write_bad_geocodes.execute(
-                    f"INSERT INTO public.bad_geocodes"
-                    f"(last_checked, reason, node_name) "
-                    f"VALUES (%s, %s, %s)",
-                    (now, 'Bad Add', node_name_string))
+                new_bad_geocode = BadGeocode(
+                    last_checked=now,
+                    reason="Bad Add",
+                    node_name=node_name_string
+                )
+                session.add(new_bad_geocode)
                 no_geocode_counter += 1
 
                 # Add to dictionary so we don't have
                 # multiple entries for each node
                 bad_geocode_calls[call_part] = now
-            elif not point and (node_name_string in bad_geocode_calls):
+            elif (lat is None or lon is None) and (
+                    node_name_string in bad_geocode_calls):
                 # Update attempt time
                 print(
                     f"Repeated failure geocoding node {node_name_string}. Updating last checked time.")
-                bad_geocode_update_query = f"UPDATE public.bad_geocodes SET last_checked='{now}' WHERE node_name = '{node_name_string}';"
-                write_bad_geocodes.execute(bad_geocode_update_query)
+                session.query(BadGeocode).filter(
+                    BadGeocode.node_name == node_name_string).update(
+                    {BadGeocode.last_checked: now},
+                    synchronize_session="fetch")
 
         elif days_lapsed < refresh_days:
             print(
@@ -303,5 +311,5 @@ if no_geocode_counter == 0:
 else:
     print(f"{no_geocode_counter} errors encountered")
 
-con.commit()
-con.close()
+session.commit()
+session.close()

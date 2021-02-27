@@ -8,7 +8,7 @@ from sqlalchemy.orm import relationship
 
 from common import get_conf
 
-debug = False
+debug = True
 
 conf = get_conf()
 
@@ -90,6 +90,7 @@ class LocallyHeardStation(Base):
     call = Column(String, nullable=False)
     digipeaters = Column(String, nullable=True)
     op_call = Column(String, nullable=False)
+    ssid = Column(Integer, nullable=True)
 
 
 class Node(Base):
@@ -106,6 +107,7 @@ class Node(Base):
     path = Column(String, nullable=False)
     level = Column(Integer, nullable=False)
     grid = Column(String, nullable=False)
+    node_name = Column(String, nullable=True)
 
 
 class Operator(Base):
