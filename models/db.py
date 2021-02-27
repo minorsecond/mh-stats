@@ -107,6 +107,7 @@ class Node(Base):
     path = Column(String, nullable=False)
     level = Column(Integer, nullable=False)
     grid = Column(String, nullable=False)
+    node_name = Column(String, nullable=True)
 
 
 class Operator(Base):

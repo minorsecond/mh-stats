@@ -67,7 +67,8 @@ for item in output:
     day = item[2].decode('utf-8')
     time = item[3].decode('utf-8')
 
-    res.append(datetime.datetime.strptime(f"{month} {day} {year} {time}", "%b %d %Y %H:%M:%S"))
+    res.append(datetime.datetime.strptime(f"{month} {day} {year} {time}",
+                                          "%b %d %Y %H:%M:%S"))
     try:
         digipeaters = item[4].decode('utf-8').split(',')
         res.append(digipeaters)
@@ -237,7 +238,8 @@ for digipeater in digipeater_list.items():
         # No ssid
         ssid = None
 
-    digipeater_call = re.sub(r'[^\w]', ' ', digipeater_call.split('-')[0]).strip()
+    digipeater_call = re.sub(r'[^\w]', ' ', digipeater_call.split('-')[0]). \
+        strip()
 
     try:
         last_seen = session.query(Digipeater.lastheard).filter(
