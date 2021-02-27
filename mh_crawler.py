@@ -613,3 +613,4 @@ for operator in all_operators:
             synchronize_session="fetch")
 
 session.commit()
+session.close()
