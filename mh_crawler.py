@@ -6,7 +6,6 @@ import re
 from string import digits
 from telnetlib import Telnet
 
-import psycopg2
 from geoalchemy2.shape import to_shape
 from shapely.geometry import Point
 from sqlalchemy import func, or_
@@ -39,10 +38,6 @@ year = datetime.date.today().year
 
 # Connect to PG
 Session = sessionmaker(bind=engine)
-
-con = psycopg2.connect(database=conf['pg_db'], user=conf['pg_user'],
-                       password=conf['pg_pw'], host=conf['pg_host'],
-                       port=conf['pg_port'])
 
 last_crawled_port_name = None
 node_to_crawl_info = {}
@@ -341,7 +336,7 @@ elif not debug:  # Write new node
 # Do the MH List Processing
 digipeater_list = {}
 current_op_list = []
-write_cursor = con.cursor()
+
 for item in mh_list:
     timedelta = None
     info = None
@@ -618,6 +613,3 @@ for operator in all_operators:
             synchronize_session="fetch")
 
 session.commit()
-if not debug:
-    con.commit()
-con.close()
