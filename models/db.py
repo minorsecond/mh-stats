@@ -8,7 +8,7 @@ from sqlalchemy.orm import relationship
 
 from common import get_conf
 
-debug = True
+debug = False
 
 conf = get_conf()
 
