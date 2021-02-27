@@ -7,7 +7,6 @@ from string import digits
 from telnetlib import Telnet
 
 from geoalchemy2.shape import to_shape
-from shapely.geometry import Point
 from sqlalchemy import func, or_
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
@@ -376,7 +375,6 @@ for item in mh_list:
     hms = timestamp.strftime("%H:%M:%S")
     lat = None
     lon = None
-    point = None
     grid = None
 
     digipeaters = ""
@@ -430,11 +428,9 @@ for item in mh_list:
             try:
                 lat = float(info[0])
                 lon = float(info[1])
-                point = Point(lon, lat).wkb_hex
                 grid = info[2]
             except ValueError:
                 print(f"Couldn't get coordinates for {op_call}")
-                point = None
                 grid = None
 
         if grid:  # No grid means no geocode generally
@@ -459,13 +455,17 @@ for item in mh_list:
             info = get_info(call.split('-')[0])
 
             if info:
-                lat = float(info[0])
-                lon = float(info[1])
-                point = Point(lon, lat).wkb_hex
-                grid = info[2]
+                try:
+                    lat = float(info[0])
+                    lon = float(info[1])
+                    grid = info[2]
+                except IndexError:
+                    lat = None
+                    lon = None
+                    grid = None
 
                 print(f"Updating coordinates for {op_call}")
-                if point:
+                if lat is not None and lon is not None:
                     session.query(RemoteOperator).filter(
                         RemoteOperator.remote_call == f'{op_call}').update(
                         {RemoteOperator.parent_call: node_to_crawl,
@@ -494,11 +494,11 @@ for digipeater in digipeater_list.items():
     lat = None
     lon = None
     grid = None
-    point = None
     digipeater_call = digipeater[0]
     timestamp = digipeater[1]
     heard = False
     ssid = None
+    timedelta = None
 
     if '*' in digipeater_call:
         heard = True
@@ -533,21 +533,28 @@ for digipeater in digipeater_list.items():
 
         if digipeater_info:
             print(f"Adding digipeater {digipeater_call}")
-            lat = float(digipeater_info[0])
-            lon = float(digipeater_info[1])
-            grid = digipeater_info[2]
 
-            remote_digi = RemoteDigipeater(parent_call=node_to_crawl,
-                                           call=digipeater_call,
-                                           lastheard=timestamp,
-                                           grid=grid,
-                                           heard=heard,
-                                           ssid=ssid,
-                                           geom=f'SRID=4326;POINT({lon} {lat})',
-                                           port=port_name,
-                                           uid=f"{node_to_crawl}-{port_name}")
+            try:
+                lat = float(digipeater_info[0])
+                lon = float(digipeater_info[1])
+                grid = digipeater_info[2]
+            except IndexError:
+                lat = None
+                lon = None
+                grid = None
 
-            session.add(remote_digi)
+            if lat is not None and lon is not None:
+                remote_digi = RemoteDigipeater(parent_call=node_to_crawl,
+                                               call=digipeater_call,
+                                               lastheard=timestamp,
+                                               grid=grid,
+                                               heard=heard,
+                                               ssid=ssid,
+                                               geom=f'SRID=4326;POINT({lon} {lat})',
+                                               port=port_name,
+                                               uid=f"{node_to_crawl}-{port_name}")
+
+                session.add(remote_digi)
             added_digipeaters.append(digipeater_call)
 
     elif timedelta and timedelta.days >= refresh_days:
@@ -557,10 +564,9 @@ for digipeater in digipeater_list.items():
             print(f"Adding digipeater {digipeater_call}")
             lat = float(digipeater_info[0])
             lon = float(digipeater_info[1])
-            point = Point(lon, lat).wkb_hex
             grid = digipeater_info[2]
 
-            if point:
+            if lat is not None and lon is not None:
                 print(f"Updating digipeater coordinates for {digipeater}")
                 session.query(RemoteDigipeater).filter(
                     RemoteDigipeater.call == f"{digipeater_call}").update(

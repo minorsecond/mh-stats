@@ -5,7 +5,6 @@ import datetime
 import re
 from telnetlib import Telnet
 
-from shapely.geometry import Point
 from sqlalchemy import func, desc
 from sqlalchemy.orm import sessionmaker
 
@@ -150,7 +149,6 @@ for item in radio_mh_list:
     hms = timestamp.strftime("%H:%M:%S")
     lat = None
     lon = None
-    point = None
     grid = None
 
     digipeaters = ""
@@ -209,7 +207,6 @@ for item in radio_mh_list:
         if info:
             lat = float(info[0])
             lon = float(info[1])
-            point = Point(lon, lat).wkb_hex
             grid = info[2]
 
         if (lat, lon, grid) != existing_ops_data.get(call):
@@ -226,7 +223,6 @@ for digipeater in digipeater_list.items():
     lat = None
     lon = None
     grid = None
-    point = None
     digipeater_call = digipeater[0]
     timestamp = digipeater[1]
     heard = False
@@ -290,7 +286,6 @@ for digipeater in digipeater_list.items():
             print(f"Adding digipeater {digipeater_call}")
             lat = float(digipeater_info[0])
             lon = float(digipeater_info[1])
-            point = Point(lon, lat).wkb_hex
             grid = digipeater_info[2]
             print(f"Updating digipeater coordinates for {digipeater}")
 
