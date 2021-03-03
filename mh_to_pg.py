@@ -68,7 +68,7 @@ for item in output:
 
     ymd = datetime.datetime.strptime(f"{month} {day} {year} {time}",
                                      "%b %d %Y %H:%M:%S")
-    if ymd > datetime.datetime.now():
+    if ymd > datetime.datetime.utcnow():
         ymd = datetime.datetime.strptime(f"{month} {day} {year - 1} {time}",
                                          "%b %d %Y %H:%M:%S")
     res.append(ymd)
