@@ -51,6 +51,7 @@ class CrawledNode(Base):
     port_name = Column(String, nullable=False)
     needs_check = Column(Boolean, nullable=False)
     uid = Column(String, nullable=False)
+    active_port = Column(Boolean, nullable=False)
 
     received_tx = relationship("RemotelyHeardStation",
                                back_populates="crawled_node",

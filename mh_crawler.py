@@ -52,9 +52,12 @@ elif auto and not debug:
     # Get a node that hasn't been crawled in 2 weeks
 
     try:
+        # Get a node port that doesn't need check and is active
         crawled_nodes = session.query(CrawledNode).filter(
-            CrawledNode.last_crawled < refresh_time).order_by(
-            func.random()).limit(1).one_or_none()
+            CrawledNode.last_crawled < refresh_time). \
+            filter(CrawledNode.needs_check == False,
+                   CrawledNode.active_port == True). \
+            order_by(func.random()).limit(1).one_or_none()
         if crawled_nodes:
             node_to_crawl_info = {
                 crawled_nodes.node_id: (
@@ -310,7 +313,8 @@ elif not debug:  # Write new node
 
         session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
                                           CrawledNode.needs_check.is_(None)). \
-            update({CrawledNode.needs_check: False},
+            update({CrawledNode.needs_check: False,
+                    CrawledNode.active_port: True},
                    synchronize_session="fetch")
 
         if selected_port and node_to_crawl and selected_port and last_crawled_port_name is None:
@@ -329,7 +333,8 @@ elif not debug:  # Write new node
             last_crawled=now,
             port_name=port_name,
             needs_check=False,
-            uid=f"{node_to_crawl}-{port_name}"
+            uid=f"{node_to_crawl}-{port_name}",
+            active_port=True
         )
         session.add(new_crawled_node)
 
