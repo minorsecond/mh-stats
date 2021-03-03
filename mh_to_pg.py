@@ -176,7 +176,7 @@ for item in radio_mh_list:
     # Update ops last heard
     if last_heard and timestamp > last_heard:
         session.query(Operator).filter(Operator.call == op_call).update(
-            {Operator.lastheard: last_heard}, synchronize_session="fetch")
+            {Operator.lastheard: timestamp}, synchronize_session="fetch")
 
     # Write Ops table if
     if op_call not in existing_ops_data and op_call not in current_op_list:
@@ -212,7 +212,8 @@ for item in radio_mh_list:
         if (lat, lon, grid) != existing_ops_data.get(call):
             print(f"Updating coordinates for {op_call}")
             session.query(Operator).filter(Operator.call == op_call).update(
-                {Operator.geom: f'SRID=4326;POINT({lon} {lat})'},
+                {Operator.geom: f'SRID=4326;POINT({lon} {lat})',
+                 Operator.lastheard: last_heard},
                 synchronize_session="fetch")
 
         current_op_list.append(op_call)
