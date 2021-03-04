@@ -221,9 +221,9 @@ if selected_port:
                    synchronize_session='fetch')
         exit()
 
-    # Send the MHU command
+    # Send the MH command
     print(f"Getting MH list for port {selected_port}.")
-    mh_command = f"mhu {selected_port}".encode('ascii')
+    mh_command = f"mh {selected_port}".encode('ascii')
     tn.write(mh_command + b"\r")
     tn.write(b"\r")
     tn.write(b"bye\r")
@@ -263,24 +263,25 @@ for index, item in enumerate(mh_output):
 # Convert time to datetime, and get digipeater list
 mh_list = []
 for item in mh_output:
-    if len(item) > 4:
+    if len(item) > 1:
         res = []
         call = item[0].decode('utf-8')
         res.append(call)
-        month = item[1].decode('utf-8')
-        day = item[2].decode('utf-8')
-        time = item[3].decode('utf-8')
+        time_passed = item[1].decode('utf-8')
+        days_passed = int(time_passed.split(':')[0])
+        hours_passed = int(time_passed.split(':')[1])
+        minutes_passed = int(time_passed.split(':')[2])
+        seconds_passed = int(time_passed.split(':')[3])
+
         try:
-            ymd = datetime.datetime.strptime(f"{month} {day} {year} {time}",
-                                             "%b %d %Y %H:%M:%S")
-            if ymd > datetime.datetime.now():  # Timestamp is prob from last year
-                ymd = datetime.datetime.strptime(
-                    f"{month} {day} {year - 1} {time}",
-                    "%b %d %Y %H:%M:%S")
+            ymd = now - datetime.timedelta(days=days_passed,
+                                           hours=hours_passed,
+                                           minutes=minutes_passed,
+                                           seconds=seconds_passed)
             res.append(ymd)
-        except ValueError:
+        except Exception as e:
             # Got bad time format
-            print(f"Error parsing timestamp: {month}-{day}-{year} {time}")
+            print(f"Error parsing time passed: {time_passed}. Error: {e}")
             exit()
         try:
             digipeaters = item[4].decode('utf-8').split(',')
@@ -654,5 +655,6 @@ for operator in all_operators:
             {RemoteOperator.bands: operating_bands},
             synchronize_session="fetch")
 
-session.commit()
+# if not debug:
+# session.commit()
 session.close()
