@@ -13,7 +13,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from common import get_info, get_conf
 from models.db import engine, CrawledNode, RemoteOperator, RemoteDigipeater, \
-    RemotelyHeardStation
+    RemotelyHeardStation, BadGeocode
 
 refresh_days = 1
 debug = False
@@ -311,6 +311,7 @@ elif not debug:  # Write new node
     if crawled_nodes:
         nodes_to_crawl_id = crawled_nodes.id
 
+        # Populate needs check field if null
         session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
                                           CrawledNode.needs_check.is_(None)). \
             update({CrawledNode.needs_check: False,
@@ -414,7 +415,7 @@ for item in mh_list:
             update({RemoteOperator.lastheard: timestamp},
                    synchronize_session="fetch")
 
-    # Write Ops table if
+    # Write Ops table if new operator
     if op_call not in existing_ops_data and op_call not in current_op_list:
         # add coordinates & grid
         if '-' in call:
@@ -452,6 +453,17 @@ for item in mh_list:
             )
 
             session.add(remote_operator)
+
+        else:  # Add to bad_geocodes table
+            print(f"{op_call} not geocoded. Adding to bad geocode table")
+            new_bad_geocode = BadGeocode(
+                last_checked=now,
+                reason="Operator not geocoded",
+                node_name=op_call,
+                parent_node=node_to_crawl
+            )
+
+            session.add(new_bad_geocode)
 
     elif op_call not in current_op_list:  # Update existing op
         if timedelta and timedelta.days >= refresh_days:

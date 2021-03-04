@@ -37,6 +37,7 @@ class BadGeocode(Base):
     last_checked = Column(DateTime, default=datetime.now())
     reason = Column(String, nullable=False)
     node_name = Column(String, nullable=False)
+    parent_node = Column(String, nullable=True)
 
 
 class CrawledNode(Base):
