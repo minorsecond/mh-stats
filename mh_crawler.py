@@ -122,8 +122,8 @@ existing_mh_data = []
 for row in existing_remote_mh_results:
     call = row.remote_call
     timestamp = row.heard_time
-    hms = timestamp.strftime("%H:%M:%S")
-    existing_mh_data.append(f"{call} {hms}")
+    hour_minute = timestamp.strftime("%H:%M")
+    existing_mh_data.append(f"{call} {hour_minute}")
 
 # Connect to local telnet server
 tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
@@ -268,10 +268,15 @@ for item in mh_output:
         call = item[0].decode('utf-8')
         res.append(call)
         time_passed = item[1].decode('utf-8')
-        days_passed = int(time_passed.split(':')[0])
-        hours_passed = int(time_passed.split(':')[1])
-        minutes_passed = int(time_passed.split(':')[2])
-        seconds_passed = int(time_passed.split(':')[3])
+
+        try:
+            days_passed = int(time_passed.split(':')[0])
+            hours_passed = int(time_passed.split(':')[1])
+            minutes_passed = int(time_passed.split(':')[2])
+            seconds_passed = int(time_passed.split(':')[3])
+        except ValueError as v:
+            print(f"Error trying to parse time: {v}")
+            exit()
 
         try:
             ymd = now - datetime.timedelta(days=days_passed,
@@ -393,7 +398,7 @@ for item in mh_list:
         timedelta = None
         last_heard = None
 
-    hms = timestamp.strftime("%H:%M:%S")
+    hour_minute = timestamp.strftime("%H:%M")
     lat = None
     lon = None
     grid = None
@@ -408,7 +413,7 @@ for item in mh_list:
         digipeaters = None
 
     # Write MH table
-    if f"{call} {hms}" not in existing_mh_data:
+    if f"{call} {hour_minute}" not in existing_mh_data:
         print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
 
         remotely_heard = RemotelyHeardStation(
