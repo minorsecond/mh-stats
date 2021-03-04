@@ -77,6 +77,20 @@ elif not node_to_crawl and not debug:
 elif not node_to_crawl and not auto:
     node_to_crawl = "KD5LPB"
 
+# Get bad geocode node names
+existing_bad_geocodes = session.query(BadGeocode.node_name).all()
+bad_geocodes = []
+for geocode in existing_bad_geocodes:
+    geocode = geocode[0]
+
+    if ':' in geocode:
+        node_part_one = geocode.split(':')[0].split('-')[0]
+        node_part_two = geocode.split(':')[1].split('-')[0]
+        bad_geocodes.append(node_part_one)
+        bad_geocodes.append(node_part_two)
+    else:
+        bad_geocodes.append(geocode)
+
 # Get all remote operators
 existing_ops = session.query(RemoteOperator).all()
 
@@ -455,15 +469,16 @@ for item in mh_list:
             session.add(remote_operator)
 
         else:  # Add to bad_geocodes table
-            print(f"{op_call} not geocoded. Adding to bad geocode table")
-            new_bad_geocode = BadGeocode(
-                last_checked=now,
-                reason="Operator not geocoded",
-                node_name=op_call,
-                parent_node=node_to_crawl
-            )
+            if op_call not in bad_geocodes:
+                print(f"{op_call} not geocoded. Adding to bad geocode table")
+                new_bad_geocode = BadGeocode(
+                    last_checked=now,
+                    reason="Operator not geocoded",
+                    node_name=op_call,
+                    parent_node=node_to_crawl
+                )
 
-            session.add(new_bad_geocode)
+                session.add(new_bad_geocode)
 
     elif op_call not in current_op_list:  # Update existing op
         if timedelta and timedelta.days >= refresh_days:
