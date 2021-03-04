@@ -655,6 +655,6 @@ for operator in all_operators:
             {RemoteOperator.bands: operating_bands},
             synchronize_session="fetch")
 
-# if not debug:
-# session.commit()
+if not debug:
+    session.commit()
 session.close()
