@@ -48,7 +48,16 @@ tn = telnet_connect()
 if node_to_crawl:  # Connect to remote
     connect_cmd = f"c {node_to_crawl}".encode('ascii')
     tn.write(b"\r\n" + connect_cmd + b"\r")
-    tn.read_until(b'Connected to', timeout=20)
+    con_results = tn.read_until(b'Connected to', timeout=20)
+
+    # Stuck on local node
+    if con_results == b'\r\n' or \
+            b"Downlink connect needs port number" in con_results:
+        print(f"Couldn't connect to {node_to_crawl}")
+        tn.write(b'b\r')
+        exit()
+    else:
+        print(f"Connected to {node_to_crawl}")
     tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
     tn.read_until(b"\n", timeout=20)
     tn.write("n".encode('ascii') + b'\r')
