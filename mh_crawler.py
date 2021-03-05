@@ -331,13 +331,16 @@ if auto and not debug:
             CrawledNode.id == nodes_to_crawl_id).update(
             {CrawledNode.port_name: port_name}, synchronize_session="fetch")
 
-elif not debug:  # Write new node
+elif not auto and not debug:  # Write new node
+    # Get port crawled by node name, port number and port name
     crawled_nodes = session.query(CrawledNode).filter(
         CrawledNode.node_id == node_to_crawl,
-        CrawledNode.port == selected_port).one_or_none()
+        CrawledNode.port == selected_port,
+        CrawledNode.port_name == port_name).one_or_none()
 
     if crawled_nodes:
         nodes_to_crawl_id = crawled_nodes.id
+        input(nodes_to_crawl_id)
 
         # Populate needs check field if null
         session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
@@ -346,14 +349,20 @@ elif not debug:  # Write new node
                     CrawledNode.active_port: True},
                    synchronize_session="fetch")
 
-        if selected_port and node_to_crawl and selected_port and last_crawled_port_name is None:
+        # Update the port name if it's empty
+        if selected_port and node_to_crawl and selected_port and \
+                last_crawled_port_name is None:
             print("Adding port name to existing row")
             session.query(CrawledNode).filter(
                 CrawledNode.id == nodes_to_crawl_id).update(
                 {CrawledNode.port_name: port_name,
                  CrawledNode.last_crawled: now}, synchronize_session="fetch")
 
-    # Add new item to table
+        """
+        If no results from query above, that means this is either a new node, 
+        new port, or that the port name has changed. In this case, we write a 
+        new row to the table with the new port information.
+        """
     elif not crawled_nodes and selected_port and node_to_crawl:
         print(f"Adding {node_to_crawl} to crawled nodes table")
         new_crawled_node = CrawledNode(
