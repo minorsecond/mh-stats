@@ -4,14 +4,13 @@ import argparse
 import datetime
 import re
 from string import digits
-from telnetlib import Telnet
 
 from geoalchemy2.shape import to_shape
 from sqlalchemy import func, or_
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 
-from common import get_info, get_conf
+from common import get_info, get_conf, telnet_connect
 from models.db import engine, CrawledNode, RemoteOperator, RemoteDigipeater, \
     RemotelyHeardStation, BadGeocode
 
@@ -126,12 +125,7 @@ for row in existing_remote_mh_results:
     existing_mh_data.append(f"{call} {hour_minute}")
 
 # Connect to local telnet server
-tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
-tn.read_until(b"user: ", timeout=2)
-tn.write(conf['telnet_user'].encode('ascii') + b"\r")
-tn.read_until(b"password:", timeout=2)
-tn.write(conf['telnet_pw'].encode('ascii') + b"\r")
-tn.read_until(b'Telnet Server\r\n', timeout=20)
+tn = telnet_connect()
 
 if auto and not debug:
     # Get node to crawl from dict

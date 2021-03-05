@@ -1,5 +1,6 @@
 import configparser
 import re
+from telnetlib import Telnet
 
 import requests
 
@@ -56,3 +57,19 @@ def get_info(callsign):
         return None
 
     return (lat, lon, grid)
+
+
+def telnet_connect():
+    """
+    Connect to telnet & return telnet object
+    :return: Telnet object
+    """
+    conf = get_conf()
+    tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
+    tn.read_until(b"user: ", timeout=2)
+    tn.write(conf['telnet_user'].encode('ascii') + b"\r")
+    tn.read_until(b"password:", timeout=2)
+    tn.write(conf['telnet_pw'].encode('ascii') + b"\r")
+    tn.read_until(b'Telnet Server\r\n', timeout=20)
+
+    return tn

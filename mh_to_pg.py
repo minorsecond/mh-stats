@@ -3,12 +3,11 @@
 
 import datetime
 import re
-from telnetlib import Telnet
 
 from sqlalchemy import func, desc
 from sqlalchemy.orm import sessionmaker
 
-from common import get_info, get_conf
+from common import get_info, get_conf, telnet_connect
 from models.db import engine, LocallyHeardStation, Operator, \
     Digipeater
 
@@ -25,12 +24,7 @@ session = Session()
 now = datetime.datetime.utcnow().replace(microsecond=0)
 year = datetime.date.today().year
 
-tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
-tn.read_until(b"user: ", timeout=2)
-tn.write(conf['telnet_user'].encode('ascii') + b"\r")
-tn.read_until(b"password:", timeout=2)
-tn.write(conf['telnet_pw'].encode('ascii') + b"\r")
-tn.read_until(b"Connected", timeout=2)
+tn = telnet_connect()
 tn.write("mhu 1".encode('ascii') + b"\r")
 tn.write(b"\r")
 tn.write(b"bye\r")

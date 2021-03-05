@@ -3,11 +3,10 @@
 import argparse
 import datetime
 import re
-from telnetlib import Telnet
 
 from sqlalchemy.orm import sessionmaker
 
-from common import get_info, get_conf
+from common import get_info, get_conf, telnet_connect
 from models.db import engine, Node, BadGeocode
 
 Session = sessionmaker(bind=engine)
@@ -44,12 +43,7 @@ for bad_call in bad_geocode_results:
     bad_geocode_calls[bad_geocode_node_name] = bad_geocode_last_checked
 
 # Connect to local telnet server
-tn = Telnet(conf['telnet_ip'], conf['telnet_port'], timeout=5)
-tn.read_until(b"user: ", timeout=2)
-tn.write(conf['telnet_user'].encode('ascii') + b"\r")
-tn.read_until(b"password:", timeout=2)
-tn.write(conf['telnet_pw'].encode('ascii') + b"\r")
-tn.read_until(b'Telnet Server\r\n', timeout=20)
+tn = telnet_connect()
 
 if node_to_crawl:  # Connect to remote
     connect_cmd = f"c {node_to_crawl}".encode('ascii')
