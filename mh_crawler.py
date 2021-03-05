@@ -32,7 +32,6 @@ conf = get_conf()
 if node_to_crawl:
     node_to_crawl = node_to_crawl.strip().upper()
 
-now = datetime.datetime.utcnow().replace(microsecond=0)
 year = datetime.date.today().year
 
 # Connect to PG
@@ -48,7 +47,8 @@ if auto and node_to_crawl:
     exit()
 
 elif auto and not debug:
-    refresh_time = now - datetime.timedelta(days=refresh_days)
+    refresh_time = datetime.datetime.utcnow().replace(microsecond=0) - \
+                   datetime.timedelta(days=refresh_days)
     # Get a node that hasn't been crawled in 2 weeks
 
     try:
@@ -122,7 +122,7 @@ existing_mh_data = []
 for row in existing_remote_mh_results:
     call = row.remote_call
     timestamp = row.heard_time
-    hour_minute = timestamp.strftime("%H:%M")
+    hour_minute = timestamp.strftime("%H:%M:%S")
     existing_mh_data.append(f"{call} {hour_minute}")
 
 # Connect to local telnet server
@@ -224,6 +224,7 @@ if selected_port:
     # Send the MH command
     print(f"Getting MH list for port {selected_port}.")
     mh_command = f"mh {selected_port}".encode('ascii')
+    now = datetime.datetime.utcnow().replace(microsecond=0)
     tn.write(mh_command + b"\r")
     tn.write(b"\r")
     tn.write(b"bye\r")
@@ -398,7 +399,7 @@ for item in mh_list:
         timedelta = None
         last_heard = None
 
-    hour_minute = timestamp.strftime("%H:%M")
+    hour_minute = timestamp.strftime("%H:%M:%S")
     lat = None
     lon = None
     grid = None
