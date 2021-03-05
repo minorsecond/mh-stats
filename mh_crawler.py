@@ -82,6 +82,11 @@ bad_geocodes = []
 for geocode in existing_bad_geocodes:
     geocode = geocode[0]
 
+    """
+    Split node name into two parts and put into list. This is for checking if
+    a bad geocode has already been added to the bad geocode table later in the
+    script.
+    """
     if ':' in geocode:
         node_part_one = geocode.split(':')[0].split('-')[0]
         node_part_two = geocode.split(':')[1].split('-')[0]
@@ -155,10 +160,13 @@ if not debug:  # Stay local if debugging
         exit()
 
 # Get available ports
+available_ports = None
 tn.write("p".encode('ascii') + b'\r')  # Get available ports
 tn.write(b'\n\n\n')
+
+# Print available ports to screen
 available_ports_raw = tn.read_until(b'\n\n\n',
-                                    timeout=20)  # Print available ports to screen
+                                    timeout=20)
 
 try:
     available_ports_raw = available_ports_raw.split(b"Ports")[1].strip()
@@ -171,7 +179,6 @@ except IndexError:
     exit()
 
 if not auto:
-
     # Give menu options on screen
     selected_port = None
     menu_item = 1
@@ -196,6 +203,11 @@ if selected_port:
     port_name = available_ports[selected_port - 1].decode(
         'utf-8').strip().lstrip(digits).strip()
 
+    last_crawled_port_name = session.query(CrawledNode.port_name).filter(
+        CrawledNode.port == selected_port,
+        CrawledNode.node_id == node_to_crawl
+    ).one_or_none()[0]
+
     # Add the UID if it doesn't exist
     crawled_node_uid = node_to_crawl + '-' + port_name
     session.query(CrawledNode).filter(CrawledNode.node_id == node_to_crawl,
@@ -208,7 +220,8 @@ if selected_port:
 
     # Update needs_check flag and exit if port has changed
     if last_crawled_port_name and port_name.strip() != last_crawled_port_name.strip():
-        print(f"Port has changed for {node_to_crawl}")
+        input(f"Port has changed for {node_to_crawl}. "
+              f"Was {last_crawled_port_name}, is now {port_name}")
         session.query(CrawledNode).filter(CrawledNode.node_id ==
                                           f'{node_to_crawl}'). \
             update({CrawledNode.needs_check: True},
