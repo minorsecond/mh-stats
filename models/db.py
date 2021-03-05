@@ -23,9 +23,9 @@ else:
 engine = create_engine(con_string)
 Base = declarative_base()
 
-__all__ = ["BadGeocode", "CrawledNode", "Digipeater", "LocallyHeardStation",
-           "Node", "Operator", "RemoteDigipeater", "RemotelyHeardStation",
-           "RemoteOperator"]
+__all__ = ["engine", "BadGeocode", "CrawledNode", "Digipeater",
+           "LocallyHeardStation", "Node", "Operator", "RemoteDigipeater",
+           "RemotelyHeardStation", "RemoteOperator"]
 
 
 class BadGeocode(Base):
@@ -56,16 +56,25 @@ class CrawledNode(Base):
 
     received_tx = relationship("RemotelyHeardStation",
                                back_populates="crawled_node",
-                               primaryjoin="and_(RemotelyHeardStation.parent_call==CrawledNode.node_id,"
-                                           "RemotelyHeardStation.port==CrawledNode.port_name)")
+                               primaryjoin="and_(RemotelyHeardStation"
+                                           ".parent_call==CrawledNode"
+                                           ".node_id, "
+                                           "RemotelyHeardStation.port"
+                                           "==CrawledNode.port_name)")
     remote_operator = relationship("RemoteOperator",
                                    back_populates="crawled_node",
-                                   primaryjoin="and_(RemoteOperator.parent_call==CrawledNode.node_id,"
-                                               "RemoteOperator.port==CrawledNode.port_name)")
+                                   primaryjoin="and_(RemoteOperator"
+                                               ".parent_call==CrawledNode"
+                                               ".node_id, "
+                                               "RemoteOperator.port"
+                                               "==CrawledNode.port_name)")
     remote_digipeater = relationship("RemoteDigipeater",
                                      back_populates="crawled_node",
-                                     primaryjoin="and_(RemoteDigipeater.parent_call==CrawledNode.node_id,"
-                                                 "RemoteDigipeater.port==CrawledNode.port_name)")
+                                     primaryjoin="and_(RemoteDigipeater"
+                                                 ".parent_call==CrawledNode"
+                                                 ".node_id, "
+                                                 "RemoteDigipeater.port"
+                                                 "==CrawledNode.port_name)")
 
 
 class Digipeater(Base):
