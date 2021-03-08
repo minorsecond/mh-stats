@@ -348,7 +348,6 @@ elif not auto and not debug:  # Write new node
 
     if crawled_nodes:
         nodes_to_crawl_id = crawled_nodes.id
-        input(nodes_to_crawl_id)
 
         # Populate needs check field if null
         session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
@@ -392,7 +391,7 @@ digipeater_list = {}
 current_op_list = []
 
 for item in mh_list:
-    timedelta = None
+    time_diff = None
     info = None
 
     # Call includes ssid, ie KD5LPB-7
@@ -418,12 +417,23 @@ for item in mh_list:
         if last_heard:
             last_heard = last_heard[0]
 
-            timedelta = (now - last_heard)
+            time_diff = (now - last_heard)
     except IndexError:
-        timedelta = None
+        time_diff = None
         last_heard = None
 
+    times = [(timestamp + datetime.timedelta(seconds=x)).strftime("%H:%M:%S")
+             for x in range(-5, 5)]
+
+    check_list = []
+    to_add = True
+    for time in times:
+        if f"{call} {time}" in existing_mh_data:
+            to_add = False
+
     hour_minute = timestamp.strftime("%H:%M:%S")
+    hour_minute = timestamp.strftime("%H:%M:%S")
+
     lat = None
     lon = None
     grid = None
@@ -438,7 +448,7 @@ for item in mh_list:
         digipeaters = None
 
     # Write MH table
-    if f"{call} {hour_minute}" not in existing_mh_data:
+    if to_add is True:
         print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
 
         remotely_heard = RemotelyHeardStation(
@@ -512,7 +522,7 @@ for item in mh_list:
                 session.add(new_bad_geocode)
 
     elif op_call not in current_op_list:  # Update existing op
-        if timedelta and timedelta.days >= refresh_days:
+        if time_diff and time_diff.days >= refresh_days:
             # add coordinates & grid
 
             info = get_info(call.split('-')[0])
@@ -561,7 +571,7 @@ for digipeater in digipeater_list.items():
     timestamp = digipeater[1]
     heard = False
     ssid = None
-    timedelta = None
+    time_diff = None
 
     if '*' in digipeater_call:
         heard = True
@@ -583,11 +593,11 @@ for digipeater in digipeater_list.items():
 
         if last_seen:
             last_seen = last_seen[0]
-            timedelta = (now - last_seen)
+            time_diff = (now - last_seen)
 
     except IndexError:
         last_seen = None  # New digi
-        timedelta = None
+        time_diff = None
 
     if digipeater_call not in existing_digipeaters_data and \
             digipeater_call not in added_digipeaters:
@@ -620,7 +630,7 @@ for digipeater in digipeater_list.items():
                 session.add(remote_digi)
             added_digipeaters.append(digipeater_call)
 
-    elif timedelta and timedelta.days >= refresh_days:
+    elif time_diff and time_diff.days >= refresh_days:
         digipeater_info = get_info(digipeater_call)
 
         if digipeater_info:
