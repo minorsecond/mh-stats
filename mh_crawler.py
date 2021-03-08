@@ -220,12 +220,15 @@ if selected_port:
 
     # Update needs_check flag and exit if port has changed
     if last_crawled_port_name and port_name.strip() != last_crawled_port_name.strip():
-        input(f"Port has changed for {node_to_crawl}. "
+        print(f"Port has changed for {node_to_crawl}. "
               f"Was {last_crawled_port_name}, is now {port_name}")
         session.query(CrawledNode).filter(CrawledNode.node_id ==
                                           f'{node_to_crawl}'). \
             update({CrawledNode.needs_check: True},
                    synchronize_session='fetch')
+        session.commit()
+        session.close()
+        tn.write(b"bye\r")
         exit()
 
     # Send the MH command
