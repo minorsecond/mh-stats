@@ -9,6 +9,7 @@ from geoalchemy2.shape import to_shape
 from sqlalchemy import func, or_
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.sql.expression import true, false
 
 from common import get_info, get_conf, telnet_connect
 from models.db import engine, CrawledNode, RemoteOperator, RemoteDigipeater, \
@@ -54,8 +55,8 @@ elif auto and not debug:
         # Get a node port that doesn't need check and is active
         crawled_nodes = session.query(CrawledNode).filter(
             CrawledNode.last_crawled < refresh_time). \
-            filter(CrawledNode.needs_check == False,
-                   CrawledNode.active_port == True). \
+            filter(CrawledNode.needs_check == false(),
+                   CrawledNode.active_port == true()). \
             order_by(func.random()).limit(1).one_or_none()
         if crawled_nodes:
             node_to_crawl_info = {
@@ -205,8 +206,12 @@ if selected_port:
 
     last_crawled_port_name = session.query(CrawledNode.port_name).filter(
         CrawledNode.port == selected_port,
-        CrawledNode.node_id == node_to_crawl
-    ).one_or_none()[0]
+        CrawledNode.node_id == node_to_crawl,
+        CrawledNode.active_port == true()
+    ).one_or_none()
+
+    if last_crawled_port_name:
+        last_crawled_port_name = last_crawled_port_name[0]
 
     # Add the UID if it doesn't exist
     crawled_node_uid = node_to_crawl + '-' + port_name
