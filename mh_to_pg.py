@@ -89,14 +89,16 @@ radio_mh_list = sorted(radio_mh_list, key=lambda x: x[1], reverse=False)
 
 existing_ops = session.query(Operator.id, Operator.call,
                              func.st_x(Operator.geom),
-                             func.st_y(Operator.geom)).all()
+                             func.st_y(Operator.geom),
+                             Operator.grid).all()
 
 existing_ops_data = {}
 for op in existing_ops:
     call = op[1]
     lon = op[2]
     lat = op[3]
-    existing_ops_data[call] = (lat, lon)
+    grid = op[4]
+    existing_ops_data[call] = (lat, lon, grid)
 
 existing_digipeaters = session.query(Digipeater.call,
                                      func.st_x(Digipeater.geom),
@@ -207,7 +209,8 @@ for item in radio_mh_list:
             print(f"Updating coordinates for {op_call}")
             session.query(Operator).filter(Operator.call == op_call).update(
                 {Operator.geom: f'SRID=4326;POINT({lon} {lat})',
-                 Operator.lastheard: last_heard},
+                 Operator.lastheard: last_heard,
+                 Operator.grid: grid},
                 synchronize_session="fetch")
 
         current_op_list.append(op_call)
