@@ -393,7 +393,6 @@ current_op_list = []
 for item in mh_list:
     time_diff = None
     info = None
-
     # Call includes ssid, ie KD5LPB-7
     call = item[0].strip().upper()
     # Op_call is just the call, ie KD5LPB
@@ -412,7 +411,7 @@ for item in mh_list:
         last_heard = session.query(RemoteOperator.lastheard). \
             distinct(RemoteOperator.remote_call, RemoteOperator.lastheard). \
             filter(RemoteOperator.remote_call == f'{op_call}'). \
-            order_by(RemoteOperator.lastheard).first()
+            order_by(RemoteOperator.lastheard.desc()).first()
 
         if last_heard:
             last_heard = last_heard[0]
@@ -430,9 +429,6 @@ for item in mh_list:
     for time in times:
         if f"{call} {time}" in existing_mh_data:
             to_add = False
-
-    hour_minute = timestamp.strftime("%H:%M:%S")
-    hour_minute = timestamp.strftime("%H:%M:%S")
 
     lat = None
     lon = None
@@ -464,7 +460,7 @@ for item in mh_list:
         session.add(remotely_heard)
 
     # Update ops last heard
-    if last_heard and timestamp > last_heard:
+    if timestamp and timestamp > last_heard:
         session.query(RemoteOperator). \
             filter(RemoteOperator.remote_call == f"{op_call}"). \
             update({RemoteOperator.lastheard: timestamp},
@@ -543,7 +539,6 @@ for item in mh_list:
                         RemoteOperator.remote_call == f'{op_call}').update(
                         {RemoteOperator.parent_call: node_to_crawl,
                          RemoteOperator.geom: f"SRID=4326;POINT({lon} {lat})",
-                         RemoteOperator.lastheard: timestamp,
                          RemoteOperator.grid: grid,
                          RemoteOperator.port: port_name,
                          RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
@@ -554,7 +549,6 @@ for item in mh_list:
             session.query(RemoteOperator).filter(
                 RemoteOperator.remote_call == f'{op_call}').update(
                 {RemoteOperator.parent_call: node_to_crawl,
-                 RemoteOperator.lastheard: timestamp,
                  RemoteOperator.port: port_name,
                  RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
                 synchronize_session="fetch")
