@@ -460,7 +460,7 @@ for item in mh_list:
         session.add(remotely_heard)
 
     # Update ops last heard
-    if timestamp and timestamp > last_heard:
+    if last_heard and timestamp > last_heard:
         session.query(RemoteOperator). \
             filter(RemoteOperator.remote_call == f"{op_call}"). \
             update({RemoteOperator.lastheard: timestamp},
