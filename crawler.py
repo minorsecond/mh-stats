@@ -6,7 +6,7 @@ import re
 
 from sqlalchemy.orm import sessionmaker
 
-from common import get_info, get_conf, telnet_connect
+from common import get_info, get_conf, telnet_connect, node_connect
 from models.db import engine, Node, BadGeocode
 
 Session = sessionmaker(bind=engine)
@@ -19,7 +19,7 @@ node_to_crawl = args.node
 conf = get_conf()
 
 now = datetime.datetime.utcnow().replace(microsecond=0)
-refresh_days = 7
+refresh_days = -1
 
 # Connect to PG
 
@@ -46,20 +46,7 @@ for bad_call in bad_geocode_results:
 tn = telnet_connect()
 
 if node_to_crawl:  # Connect to remote
-    connect_cmd = f"c {node_to_crawl}".encode('ascii')
-    tn.write(b"\r\n" + connect_cmd + b"\r")
-    con_results = tn.read_until(b'Connected to', timeout=20)
-
-    # Stuck on local node
-    if con_results == b'\r\n' or \
-            b"Downlink connect needs port number" in con_results:
-        print(f"Couldn't connect to {node_to_crawl}")
-        tn.write(b'b\r')
-        exit()
-    else:
-        print(f"Connected to {node_to_crawl}")
-    tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
-    tn.read_until(b"\n", timeout=20)
+    tn = node_connect(node_to_crawl, tn)
     tn.write("n".encode('ascii') + b'\r')
     tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
     path = node_to_crawl
@@ -179,8 +166,7 @@ for node_name_pair in clean_call_list:
             days_lapsed = None
 
         # Add new node
-        if (
-                days_lapsed and days_lapsed >= refresh_days) or days_lapsed is None:
+        if days_lapsed is None or (days_lapsed >= refresh_days):
             part = 0
             for check_call in [name_first_part, name_second_part]:
                 if check_call:
@@ -220,6 +206,9 @@ for node_name_pair in clean_call_list:
                         elif part == 1:
                             node_part = name_first_part
 
+                        if node_part is None:
+                            node_part = base_call
+
                     else:
                         print(f"Couldn't get info for {call_part}")
 
@@ -258,7 +247,7 @@ for node_name_pair in clean_call_list:
                                 update(
                                 {Node.geom: f'SRID=4326;POINT({lon} {lat})',
                                  Node.last_check: last_check,
-                                 Node.node_name: base_call},
+                                 Node.node_name: node_part},
                                 synchronize_session="fetch")
                             break
                         else:

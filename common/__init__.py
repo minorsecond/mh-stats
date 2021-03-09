@@ -73,3 +73,29 @@ def telnet_connect():
     tn.read_until(b'Telnet Server\r\n', timeout=20)
 
     return tn
+
+
+def node_connect(node_name, tn):
+    """
+    Connect to node
+    :param node_name: Name of node to connect to
+    :param tn: A Telnet connection object
+    :return: Telnet object
+    """
+
+    connect_cmd = f"c {node_name}".encode('ascii')
+    print(f"Connecting to {node_name}")
+    tn.write(b"\r\n" + connect_cmd + b"\r")
+    con_results = tn.read_until(b'Connected to', timeout=30)
+
+    # Stuck on local node
+    if con_results == b'\r\n' or \
+            b"Downlink connect needs port number" in con_results:
+        print(f"Couldn't connect to {node_name}")
+        tn.write(b'b\r')
+        exit()
+    else:
+        print(f"Connected to {node_name}")
+        tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+        tn.read_until(b"\n", timeout=20)
+        return tn
