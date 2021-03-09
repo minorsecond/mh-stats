@@ -2,7 +2,7 @@ from datetime import datetime
 
 from geoalchemy2 import *
 from sqlalchemy import Column, BigInteger, String, DateTime, \
-    Integer, Boolean, create_engine, ForeignKey
+    Integer, Boolean, create_engine, ForeignKey, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -189,6 +189,10 @@ class RemoteOperator(Base):
     bands = Column(String, nullable=True)
     uid = Column(String, nullable=False)
 
+
+metadata = MetaData()
+metadata.bind = engine
+ops_to_crawl = Table("ops_to_crawl", metadata, autoload=True)
 
 BadGeocode.__table__.create(engine, checkfirst=True)
 CrawledNode.__table__.create(engine, checkfirst=True)
