@@ -627,7 +627,9 @@ for digipeater in digipeater_list.items():
                     synchronize_session="fetch")
 
     # Update timestamp
-    if last_seen and last_seen < timestamp:
+    if last_seen and last_seen < timestamp <= now + datetime.timedelta(
+            minutes=5):
+        print(f"Updating timestamp for digipeater {digipeater_call}")
         session.query(RemoteDigipeater).filter(
             RemoteDigipeater.call == f"{digipeater_call}").update(
             {RemoteDigipeater.lastheard: timestamp},

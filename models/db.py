@@ -77,6 +77,44 @@ class CrawledNode(Base):
                                                  "==CrawledNode.port_name)")
 
 
+class CrawledOp(Base):
+    """
+    Nodes that have been crawled
+    """
+    __tablename__ = 'crawled_ops'
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    parent_node = Column(String, nullable=False)
+    call = Column(String, nullable=False)
+    last_crawled = Column(DateTime, default=datetime.now())
+    port = Column(Integer, nullable=False)
+    port_name = Column(String, nullable=False)
+    needs_check = Column(Boolean, nullable=False)
+    active_port = Column(Boolean, nullable=False)
+    uid = Column(String, nullable=False)
+
+    received_tx = relationship("RemotelyHeardStation",
+                               back_populates="crawled_node",
+                               primaryjoin="and_(RemotelyHeardStation"
+                                           ".parent_call==CrawledOp"
+                                           ".call, "
+                                           "RemotelyHeardStation.port"
+                                           "==CrawledOp.port_name)")
+    remote_operator = relationship("RemoteOperator",
+                                   back_populates="crawled_node",
+                                   primaryjoin="and_(RemoteOperator"
+                                               ".parent_call==CrawledOp"
+                                               ".call, "
+                                               "RemoteOperator.port"
+                                               "==CrawledOp.port_name)")
+    remote_digipeater = relationship("RemoteDigipeater",
+                                     back_populates="crawled_node",
+                                     primaryjoin="and_(RemoteDigipeater"
+                                                 ".parent_call==CrawledOp"
+                                                 ".call, "
+                                                 "RemoteDigipeater.port"
+                                                 "==CrawledOp.port_name)")
+
+
 class Digipeater(Base):
     """
     Local digipeater data
@@ -192,7 +230,13 @@ class RemoteOperator(Base):
 
 metadata = MetaData()
 metadata.bind = engine
-ops_to_crawl = Table("ops_to_crawl", metadata, autoload=True)
+ops_to_crawl = Table("ops_to_crawl", metadata,
+                     Column("id", BigInteger, primary_key=True),
+                     Column("parent_call", String),
+                     Column("remote_call", String),
+                     Column("last_crawled", DateTime),
+                     Column("port", Integer),
+                     autoload=True)
 
 BadGeocode.__table__.create(engine, checkfirst=True)
 CrawledNode.__table__.create(engine, checkfirst=True)
