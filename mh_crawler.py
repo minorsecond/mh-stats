@@ -629,7 +629,7 @@ for digipeater in digipeater_list.items():
 
     # Update timestamp
     if last_seen and last_seen < timestamp:
-        input(
+        print(
             f"Updating timestamp for digipeater {digipeater_call} with TS {timestamp}")
         session.query(RemoteDigipeater).filter(
             RemoteDigipeater.call == f"{digipeater_call}").update(
