@@ -14,8 +14,10 @@ session = Session()
 
 parser = argparse.ArgumentParser(description="Get node to crawl")
 parser.add_argument('--node', metavar='N', type=str, help="Node name to crawl")
+parser.add_argument('-v', action='store_true', help='Verbose log')
 args = parser.parse_args()
 node_to_crawl = args.node
+verbose = args.v
 conf = get_conf()
 
 now = datetime.datetime.utcnow().replace(microsecond=0)
@@ -175,7 +177,8 @@ for node_name_pair in clean_call_list:
                                            check_call.split('-')[0])
                     else:
                         call_part = check_call
-                    print(f"Processing node name part: {call_part}")
+                    if verbose:
+                        print(f"Processing node name part: {call_part}")
                     info = get_info(call_part)
                     parent_call = call_part
                     last_check = now
@@ -196,9 +199,11 @@ for node_name_pair in clean_call_list:
                             lon = float(info[1])
                             grid = info[2]
                             added_counter += 1
-                            print(f"Got coords for {base_call}")
+                            if verbose:
+                                print(f"Got coords for {base_call}")
                         except ValueError:
-                            print(f"Error getting coords for {base_call}")
+                            if verbose:
+                                print(f"Error getting coords for {base_call}")
 
                         node_par = None
                         if part == 0:
@@ -210,7 +215,8 @@ for node_name_pair in clean_call_list:
                             node_part = base_call
 
                     else:
-                        print(f"Couldn't get info for {call_part}")
+                        if verbose:
+                            print(f"Couldn't get info for {call_part}")
 
                     if base_call not in first_order_nodes and base_call not in processed_calls:
                         if lon is not None and lat is not None:
@@ -229,7 +235,8 @@ for node_name_pair in clean_call_list:
 
                             session.add(new_node)
 
-                            print(f"Added {base_call} to node table")
+                            if verbose:
+                                print(f"Added {base_call} to node table")
                             new_nodes += 1
                             # Remove from bad geocode table
                             if base_call in bad_geocode_calls:
@@ -241,7 +248,8 @@ for node_name_pair in clean_call_list:
 
                     else:  # Update node that exists in node table
                         if lon is not None and lat is not None:
-                            print(f"Updating node {base_call}")
+                            if verbose:
+                                print(f"Updating node {base_call}")
                             session.query(Node). \
                                 filter(Node.call == base_call). \
                                 update(
@@ -251,7 +259,8 @@ for node_name_pair in clean_call_list:
                                 synchronize_session="fetch")
                             break
                         else:
-                            print(f"Couldn't geocode {base_call}")
+                            if verbose:
+                                print(f"Couldn't geocode {base_call}")
 
                         processed_calls.append(base_call)
                 part += 1
@@ -259,8 +268,9 @@ for node_name_pair in clean_call_list:
             # Don't add to bad geocode table if we have coords
             if lat is None or lon is None and (
                     node_name_string not in bad_geocode_calls and base_call not in first_order_nodes):
-                print(
-                    f"Couldn't get coords for {node_name_string}. Adding to bad_geocodes table.")
+                if verbose:
+                    print(
+                        f"Couldn't get coords for {node_name_string}. Adding to bad_geocodes table.")
                 new_bad_geocode = BadGeocode(
                     last_checked=now,
                     reason="Bad Add",
@@ -275,17 +285,19 @@ for node_name_pair in clean_call_list:
             elif (lat is None or lon is None) and (
                     node_name_string in bad_geocode_calls):
                 # Update attempt time
-                print(
-                    f"Repeated failure geocoding node {node_name_string}. Updating last checked time.")
+                if verbose:
+                    print(
+                        f"Repeated failure geocoding node {node_name_string}. Updating last checked time.")
                 session.query(BadGeocode).filter(
                     BadGeocode.node_name == node_name_string).update(
                     {BadGeocode.last_checked: now},
                     synchronize_session="fetch")
 
         elif days_lapsed < refresh_days:
-            print(
-                f"Not processing {node_name_string} as not enough days have passed"
-                f" since last checked")
+            if verbose:
+                print(
+                    f"Not processing {node_name_string} as not enough days have passed"
+                    f" since last checked")
         processed_node_names.append(base_call)
 
 if new_nodes == 0:
