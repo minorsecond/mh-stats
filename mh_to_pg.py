@@ -1,6 +1,7 @@
 #!/bin/python3
 # Save MH data to PostgreSQL database
 
+import argparse
 import datetime
 import re
 
@@ -10,6 +11,11 @@ from sqlalchemy.orm import sessionmaker
 from common import get_info, get_conf, telnet_connect
 from models.db import engine, LocallyHeardStation, Operator, \
     Digipeater
+
+parser = argparse.ArgumentParser(description="Scrape BPQ node")
+parser.add_argument('-v', action='store_true', help="Verbose logs")
+args = parser.parse_args()
+verbose = args.v
 
 refresh_days = 7
 
@@ -116,6 +122,8 @@ for digipeater in existing_digipeaters:
 # Write to PG
 digipeater_list = {}
 current_op_list = []
+mh_counter = 0
+new_op_counter = 0
 for item in radio_mh_list:
     call = item[0].strip()
     op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
@@ -158,7 +166,8 @@ for item in radio_mh_list:
 
     # Write MH table
     if f"{call} {hms}" not in existing_mh_data:
-        print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
+        if verbose:
+            print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
 
         new_mh_entry = LocallyHeardStation(
             timestamp=timestamp,
@@ -168,6 +177,7 @@ for item in radio_mh_list:
             ssid=ssid
         )
         session.add(new_mh_entry)
+        mh_counter += 1
 
     # Update ops last heard
     if last_heard and timestamp > last_heard:
@@ -184,7 +194,8 @@ for item in radio_mh_list:
             lon = float(info[1])
             grid = info[2]
 
-            print(f"{now} Adding {op_call} to operator table.")
+            if verbose:
+                print(f"{now} Adding {op_call} to operator table.")
             new_operator = Operator(
                 call=op_call,
                 lastheard=timestamp,
@@ -193,6 +204,7 @@ for item in radio_mh_list:
             )
             session.add(new_operator)
             current_op_list.append(op_call)
+            new_op_counter += 1
 
     elif timedelta and timedelta.days >= refresh_days and op_call not in \
             current_op_list:
@@ -206,7 +218,8 @@ for item in radio_mh_list:
             grid = info[2]
 
         if (lat, lon, grid) != existing_ops_data.get(call):
-            print(f"Updating coordinates for {op_call}")
+            if verbose:
+                print(f"Updating coordinates for {op_call}")
             session.query(Operator).filter(Operator.call == op_call).update(
                 {Operator.geom: f'SRID=4326;POINT({lon} {lat})',
                  Operator.lastheard: last_heard,
@@ -217,6 +230,7 @@ for item in radio_mh_list:
 
 # Write digipeaters table
 added_digipeaters = []
+digipeater_counter = 0
 for digipeater in digipeater_list.items():
     lat = None
     lon = None
@@ -259,7 +273,8 @@ for digipeater in digipeater_list.items():
         digipeater_info = get_info(digipeater_call)
 
         if digipeater_info:
-            print(f"Adding digipeater {digipeater_call}")
+            if verbose:
+                print(f"Adding digipeater {digipeater_call}")
             lat = float(digipeater_info[0])
             lon = float(digipeater_info[1])
             grid = digipeater_info[2]
@@ -274,18 +289,18 @@ for digipeater in digipeater_list.items():
             )
 
             session.add(new_digipeater)
-
+            digipeater_counter += 1
             added_digipeaters.append(digipeater_call)
 
     elif timedelta and timedelta.days >= refresh_days:
         digipeater_info = get_info(digipeater_call)
 
         if digipeater_info:
-            print(f"Adding digipeater {digipeater_call}")
+            if verbose:
+                print(f"Adding digipeater {digipeater_call}")
             lat = float(digipeater_info[0])
             lon = float(digipeater_info[1])
             grid = digipeater_info[2]
-            print(f"Updating digipeater coordinates for {digipeater}")
 
             session.query(Digipeater). \
                 filter(Digipeater.call == digipeater_call). \
@@ -301,3 +316,6 @@ for digipeater in digipeater_list.items():
 
 session.commit()
 session.close()
+
+print(f"Added {mh_counter} MH items, {new_op_counter} new ops,"
+      f" and {digipeater_counter} digipeaters")

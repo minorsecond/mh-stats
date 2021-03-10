@@ -24,9 +24,11 @@ parser = argparse.ArgumentParser(description="Crawl BPQ nodes")
 parser.add_argument('--node', metavar='N', type=str, help="Node name to crawl")
 parser.add_argument('-auto', action='store_true',
                     help="Pick a node to crawl automatically")
+parser.add_argument('-v', action='store_true', help='Verbose log')
 args = parser.parse_args()
 node_to_crawl = args.node
 auto = args.auto
+verbose = args.v
 conf = get_conf()
 
 if node_to_crawl:
@@ -312,7 +314,8 @@ if auto and not debug:
     # Update timestamp of crawled node
     # crawled_node[1]: (crawled_node[0], crawled_node[2], crawled_node[3])
 
-    print("Updating crawled node timestamp")
+    if verbose:
+        print("Updating crawled node timestamp")
     nodes_to_crawl_id = node_info[0]
     port = node_info[1]
     timestamp = node_info[2]
@@ -350,7 +353,8 @@ elif not auto and not debug:  # Write new node
         # Update the port name if it's empty
         if selected_port and node_to_crawl and selected_port and \
                 last_crawled_port_name is None:
-            print("Adding port name to existing row")
+            if verbose:
+                print(f"Adding port name {port_name} to existing row")
             session.query(CrawledNode).filter(
                 CrawledNode.id == nodes_to_crawl_id).update(
                 {CrawledNode.port_name: port_name,
@@ -362,7 +366,8 @@ elif not auto and not debug:  # Write new node
         new row to the table with the new port information.
         """
     elif not crawled_nodes and selected_port and node_to_crawl:
-        print(f"Adding {node_to_crawl} to crawled nodes table")
+        if verbose:
+            print(f"Adding {node_to_crawl} to crawled nodes table")
         new_crawled_node = CrawledNode(
             node_id=node_to_crawl,
             port=selected_port,
@@ -380,7 +385,10 @@ elif not auto and not debug:  # Write new node
 # Do the MH List Processing
 digipeater_list = {}
 current_op_list = []
-
+mh_counter = 0
+new_ops_counter = 0
+bad_geocodes_counter = 0
+updated_ops_counter = 0
 for item in mh_list:
     time_diff = None
     info = None
@@ -436,7 +444,8 @@ for item in mh_list:
 
     # Write MH table
     if to_add is True:
-        print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
+        if verbose:
+            print(f"{now} Adding {call} at {timestamp} through {digipeaters}.")
 
         remotely_heard = RemotelyHeardStation(
             parent_call=node_to_crawl,
@@ -449,6 +458,7 @@ for item in mh_list:
         )
 
         session.add(remotely_heard)
+        mh_counter += 1
 
     # Update ops last heard
     if last_heard and timestamp > last_heard:
@@ -478,11 +488,13 @@ for item in mh_list:
                 lon = float(info[1])
                 grid = info[2]
             except ValueError:
-                print(f"Couldn't get coordinates for {op_call}")
+                if verbose:
+                    print(f"Couldn't get coordinates for {op_call}")
                 grid = None
 
         if grid:  # No grid means no geocode generally
-            print(f"{now} Adding {op_call} to operator table.")
+            if verbose:
+                print(f"{now} Adding {op_call} to operator table.")
 
             remote_operator = RemoteOperator(
                 parent_call=node_to_crawl,
@@ -495,10 +507,13 @@ for item in mh_list:
             )
 
             session.add(remote_operator)
+            new_ops_counter += 1
 
         else:  # Add to bad_geocodes table
             if op_call not in bad_geocodes:
-                print(f"{op_call} not geocoded. Adding to bad geocode table")
+                if verbose:
+                    print(
+                        f"{op_call} not geocoded. Adding to bad geocode table")
                 new_bad_geocode = BadGeocode(
                     last_checked=now,
                     reason="Operator not geocoded",
@@ -507,6 +522,7 @@ for item in mh_list:
                 )
 
                 session.add(new_bad_geocode)
+                bad_geocodes_counter += 1
 
     elif op_call not in current_op_list:  # Update existing op
         if time_diff and time_diff.days >= refresh_days:
@@ -524,7 +540,8 @@ for item in mh_list:
                     lon = None
                     grid = None
 
-                print(f"Updating coordinates for {op_call}")
+                if verbose:
+                    print(f"Updating coordinates for {op_call}")
                 if lat is not None and lon is not None:
                     session.query(RemoteOperator).filter(
                         RemoteOperator.remote_call == f'{op_call}').update(
@@ -534,20 +551,25 @@ for item in mh_list:
                          RemoteOperator.port: port_name,
                          RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
                         synchronize_session="fetch")
+                    updated_ops_counter += 1
 
         else:  # Update port & uid
-            print(f"Updating parent node & port data for {op_call}")
+            if verbose:
+                print(f"Updating parent node & port data for {op_call}")
             session.query(RemoteOperator).filter(
                 RemoteOperator.remote_call == f'{op_call}').update(
                 {RemoteOperator.parent_call: node_to_crawl,
                  RemoteOperator.port: port_name,
                  RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
                 synchronize_session="fetch")
+            updated_ops_counter += 1
 
     current_op_list.append(op_call)
 
 # Write digipeaters table
 added_digipeaters = []
+new_digipeater_counter = 0
+updated_digipeater_counter = 0
 for digipeater in digipeater_list.items():
     lat = None
     lon = None
@@ -590,7 +612,8 @@ for digipeater in digipeater_list.items():
         digipeater_info = get_info(digipeater_call)
 
         if digipeater_info:
-            print(f"Adding digipeater {digipeater_call}")
+            if verbose:
+                print(f"Adding digipeater {digipeater_call}")
 
             try:
                 lat = float(digipeater_info[0])
@@ -613,36 +636,42 @@ for digipeater in digipeater_list.items():
                                                uid=f"{node_to_crawl}-{port_name}")
 
                 session.add(remote_digi)
+                new_digipeater_counter += 1
             added_digipeaters.append(digipeater_call)
 
     elif time_diff and time_diff.days >= refresh_days:
         digipeater_info = get_info(digipeater_call)
 
         if digipeater_info:
-            print(f"Adding digipeater {digipeater_call}")
+            if verbose:
+                print(f"Adding digipeater {digipeater_call}")
             lat = float(digipeater_info[0])
             lon = float(digipeater_info[1])
             grid = digipeater_info[2]
 
             if lat is not None and lon is not None:
-                print(f"Updating digipeater coordinates for {digipeater}")
+                if verbose:
+                    print(f"Updating digipeater coordinates for {digipeater}")
                 session.query(RemoteDigipeater).filter(
                     RemoteDigipeater.call == f"{digipeater_call}").update(
                     {RemoteDigipeater.geom: f"SRID=4326;POINT({lon} {lat})"},
                     synchronize_session="fetch")
+                updated_digipeater_counter += 1
 
     # Update timestamp
     if last_seen and last_seen < timestamp:
-        print(
-            f"Updating timestamp for digipeater {digipeater_call} with TS {timestamp}")
+        if verbose:
+            print(
+                f"Updating timestamp for digipeater {digipeater_call} with TS {timestamp}")
         session.query(RemoteDigipeater).filter(
             RemoteDigipeater.call == f"{digipeater_call}").update(
             {RemoteDigipeater.lastheard: timestamp},
             synchronize_session="fetch")
 
 # Get bands for each operator
-print("Updating bands columns")
 
+if verbose:
+    print("Updating bands columns")
 case_statement = "UPDATE public.remote_mh SET band = CASE " \
                  "WHEN (port LIKE '%44_.%' OR port LIKE '44_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '70CM' " \
                  "WHEN (port LIKE '%14_.%' OR port LIKE '14_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '2M' " \
@@ -686,3 +715,8 @@ for operator in all_operators:
 if not debug:
     session.commit()
 session.close()
+
+print(f"{now} - Added {mh_counter} MH rows, with {new_ops_counter} "
+      f"new operators, {updated_ops_counter} updated ops, and "
+      f"{bad_geocodes_counter} bad geocodes. Added {new_digipeater_counter} "
+      f"new digipeaters and updated {updated_digipeater_counter} digipeaters.")
