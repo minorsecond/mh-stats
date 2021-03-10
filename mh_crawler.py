@@ -214,7 +214,8 @@ if selected_port:
         print(f"Port has changed for {node_to_crawl}. "
               f"Was {last_crawled_port_name}, is now {port_name}")
         session.query(CrawledNode).filter(CrawledNode.node_id ==
-                                          f'{node_to_crawl}'). \
+                                          f'{node_to_crawl}',
+                                          CrawledNode.port == selected_port). \
             update({CrawledNode.needs_check: True},
                    synchronize_session='fetch')
         session.commit()
@@ -531,7 +532,7 @@ for item in mh_list:
                         synchronize_session="fetch")
 
         else:  # Update port & uid
-            print(f"Updating entry for {op_call}")
+            print(f"Updating parent node & port data for {op_call}")
             session.query(RemoteOperator).filter(
                 RemoteOperator.remote_call == f'{op_call}').update(
                 {RemoteOperator.parent_call: node_to_crawl,
@@ -628,6 +629,8 @@ for digipeater in digipeater_list.items():
 
     # Update timestamp
     if last_seen and last_seen < timestamp:
+        input(
+            f"Updating timestamp for digipeater {digipeater_call} with TS {timestamp}")
         session.query(RemoteDigipeater).filter(
             RemoteDigipeater.call == f"{digipeater_call}").update(
             {RemoteDigipeater.lastheard: timestamp},
