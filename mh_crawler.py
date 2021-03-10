@@ -97,36 +97,40 @@ for geocode in existing_bad_geocodes:
         bad_geocodes.append(geocode)
 
 # Get all remote operators
-existing_ops = session.query(RemoteOperator).all()
+existing_ops = session.query(RemoteOperator.remote_call,
+                             RemoteOperator.geom).all()
 
 existing_ops_data = {}
 for op in existing_ops:
-    remote_call = op.remote_call
-    point = to_shape(op.geom)
+    remote_call = op[0]
+    point = to_shape(op[1])
     lon = point.x
     lat = point.y
 
     existing_ops_data[remote_call] = (lat, lon)
 
 # Get all remote digipeaters
-existing_digipeaters = session.query(RemoteDigipeater).all()
+existing_digipeaters = session.query(RemoteDigipeater.call,
+                                     RemoteDigipeater.geom,
+                                     RemoteDigipeater.heard).all()
 
 existing_digipeaters_data = {}
 for digipeater in existing_digipeaters:
-    digipeater_call = digipeater.call
-    point = to_shape(digipeater.geom)
+    digipeater_call = digipeater[0]
+    point = to_shape(digipeater[1])
     lon = point.x
     lat = point.y
-    heard = digipeater.heard
+    heard = digipeater[2]
     existing_digipeaters_data[digipeater_call] = (lat, lon, heard)
 
 # Get all remote MHeard list
-existing_remote_mh_results = session.query(RemotelyHeardStation).all()
+existing_remote_mh_results = session.query(RemotelyHeardStation.remote_call,
+                                           RemotelyHeardStation.heard_time).all()
 
 existing_mh_data = []
 for row in existing_remote_mh_results:
-    call = row.remote_call
-    timestamp = row.heard_time
+    call = row[0]
+    timestamp = row[1]
     hour_minute = timestamp.strftime("%H:%M:%S")
     existing_mh_data.append(f"{call} {hour_minute}")
 
@@ -214,7 +218,8 @@ if selected_port:
         print(f"Port has changed for {node_to_crawl}. "
               f"Was {last_crawled_port_name}, is now {port_name}")
         session.query(CrawledNode).filter(CrawledNode.node_id ==
-                                          f'{node_to_crawl}'). \
+                                          f'{node_to_crawl}',
+                                          CrawledNode.port == selected_port). \
             update({CrawledNode.needs_check: True},
                    synchronize_session='fetch')
         session.commit()
@@ -531,7 +536,7 @@ for item in mh_list:
                         synchronize_session="fetch")
 
         else:  # Update port & uid
-            print(f"Updating entry for {op_call}")
+            print(f"Updating parent node & port data for {op_call}")
             session.query(RemoteOperator).filter(
                 RemoteOperator.remote_call == f'{op_call}').update(
                 {RemoteOperator.parent_call: node_to_crawl,
@@ -627,9 +632,9 @@ for digipeater in digipeater_list.items():
                     synchronize_session="fetch")
 
     # Update timestamp
-    if last_seen and last_seen < timestamp <= now + datetime.timedelta(
-            minutes=5):
-        print(f"Updating timestamp for digipeater {digipeater_call}")
+    if last_seen and last_seen < timestamp:
+        print(
+            f"Updating timestamp for digipeater {digipeater_call} with TS {timestamp}")
         session.query(RemoteDigipeater).filter(
             RemoteDigipeater.call == f"{digipeater_call}").update(
             {RemoteDigipeater.lastheard: timestamp},
