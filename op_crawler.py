@@ -22,6 +22,10 @@ args = parser.parse_args()
 op_to_crawl = args.operator
 auto = args.auto
 
+available_ports = None
+selected_port = None
+tn = None
+
 if op_to_crawl:
     op_to_crawl = op_to_crawl.strip().upper()
 
@@ -110,7 +114,7 @@ if conn_info:
 # Let connection settle, and then connect to operator station
 sleep(3)
 
-if not debug:
+if not debug and selected_port and tn:
     op_to_call = conn_info[1]
     con_string = f"c {selected_port} {op_to_call}".encode('ascii')
     tn.write(con_string)
