@@ -21,6 +21,7 @@ verbose = args.v
 conf = get_conf()
 
 now = datetime.datetime.utcnow().replace(microsecond=0)
+print(f"Run at {now}")
 refresh_days = -1
 
 # Connect to PG
