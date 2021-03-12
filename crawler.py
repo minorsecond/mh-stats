@@ -22,7 +22,7 @@ conf = get_conf()
 
 now = datetime.datetime.utcnow().replace(microsecond=0)
 print(f"Run at {now}")
-refresh_days = -1
+refresh_days = 7
 
 # Connect to PG
 
@@ -160,8 +160,12 @@ for node_name_pair in clean_call_list:
         last_checked = first_order_nodes.get(first_base)
         if not last_checked:  # Try second base
             last_checked = first_order_nodes.get(second_base)
-        if not last_checked:  # Might be in bad geocodes table
-            last_checked = bad_geocode_calls.get(node_name_string)
+        if not last_checked:
+            for call_node_pair in bad_geocode_calls:
+                if name_first_part in call_node_pair:
+                    last_checked = bad_geocode_calls.get(call_node_pair)
+                elif name_second_part in bad_geocode_calls:
+                    last_checked = bad_geocode_calls.get(call_node_pair)
 
         try:
             days_lapsed = (now - last_checked).days
