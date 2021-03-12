@@ -166,7 +166,6 @@ for node_name_pair in clean_call_list:
                     last_checked = bad_geocode_calls.get(call_node_pair)
                 elif name_second_part in bad_geocode_calls:
                     last_checked = bad_geocode_calls.get(call_node_pair)
-
         try:
             days_lapsed = (now - last_checked).days
         except TypeError:
@@ -271,7 +270,7 @@ for node_name_pair in clean_call_list:
                 part += 1
 
             # Don't add to bad geocode table if we have coords
-            if lat is None or lon is None and (
+            if (lat is None or lon is None) and (
                     node_name_string not in bad_geocode_calls and base_call not in first_order_nodes):
                 if verbose:
                     print(
