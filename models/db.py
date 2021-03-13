@@ -169,6 +169,7 @@ class RemotelyHeardStation(Base):
     port = Column(String, nullable=False)
     band = Column(String, nullable=True)
     uid = Column(String, nullable=False)
+    digis = Column(String, nullable=True)
 
 
 class RemoteOperator(Base):

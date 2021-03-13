@@ -298,7 +298,7 @@ for item in mh_output:
             print(f"Error parsing time passed: {time_passed}. Error: {e}")
             exit()
         try:
-            digipeaters = item[4].decode('utf-8').split(',')
+            digipeaters = item[2].decode('utf-8').split(',')
             res.append(digipeaters)
         except IndexError:
             res.append(None)
@@ -333,7 +333,7 @@ if auto and not debug:
             CrawledNode.id == nodes_to_crawl_id).update(
             {CrawledNode.port_name: port_name}, synchronize_session="fetch")
 
-elif not auto and not debug:  # Write new node
+elif not auto:  # Write new node
     # Get port crawled by node name, port number and port name
     crawled_nodes = session.query(CrawledNode).filter(
         CrawledNode.node_id == node_to_crawl,
@@ -454,7 +454,8 @@ for item in mh_list:
             ssid=ssid,
             update_time=now,
             port=port_name,
-            uid=f"{node_to_crawl}-{port_name}"
+            uid=f"{node_to_crawl}-{port_name}",
+            digis=digipeaters
         )
 
         session.add(remotely_heard)
@@ -667,6 +668,8 @@ for digipeater in digipeater_list.items():
             RemoteDigipeater.call == f"{digipeater_call}").update(
             {RemoteDigipeater.lastheard: timestamp},
             synchronize_session="fetch")
+
+    # Add to port list
 
 # Get bands for each operator
 
