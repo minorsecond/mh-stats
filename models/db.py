@@ -73,7 +73,7 @@ class CrawledNode(Base):
                                      primaryjoin="and_(RemoteDigipeater"
                                                  ".parent_call==CrawledNode"
                                                  ".node_id, "
-                                                 "RemoteDigipeater.port"
+                                                 "RemoteDigipeater.last_port"
                                                  "==CrawledNode.port_name)")
 
 
@@ -149,7 +149,7 @@ class RemoteDigipeater(Base):
     heard = Column(Boolean, nullable=False)
     ssid = Column(Integer, nullable=True)
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
-    port = Column(String, nullable=False)
+    last_port = Column(String, nullable=False)
     uid = Column(String, nullable=False)
     ports = Column(String, nullable=False)
 

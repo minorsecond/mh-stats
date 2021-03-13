@@ -635,16 +635,22 @@ for digipeater in digipeater_list.items():
                                                heard=heard,
                                                ssid=ssid,
                                                geom=f'SRID=4326;POINT({lon} {lat})',
-                                               port=port_name,
+                                               last_port=port_name,
                                                uid=f"{node_to_crawl}-{port_name}")
 
                 session.add(remote_digi)
                 new_digipeater_counter += 1
             added_digipeaters.append(digipeater_call)
 
-    # Add new digipeater port
+    # Update digipeater ports
     elif digipeater_call in existing_digipeaters_data and \
             digipeater_call not in added_digipeaters:
+        session.query(RemoteDigipeater). \
+            filter(RemoteDigipeater.call == digipeater_call). \
+            update({RemoteDigipeater.parent_call: node_to_crawl,
+                    RemoteDigipeater.last_port: port_name,
+                    RemoteDigipeater.uid: f"{node_to_crawl}-{port_name}"})
+
         existing_digi_ports = existing_digipeaters_data.get(digipeater_call)[3]
 
         port_list = None
