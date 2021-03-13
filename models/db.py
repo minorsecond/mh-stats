@@ -151,6 +151,7 @@ class RemoteDigipeater(Base):
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
     port = Column(String, nullable=False)
     uid = Column(String, nullable=False)
+    ports = Column(String, nullable=False)
 
 
 class RemotelyHeardStation(Base):

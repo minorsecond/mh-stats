@@ -114,7 +114,8 @@ for op in existing_ops:
 # Get all remote digipeaters
 existing_digipeaters = session.query(RemoteDigipeater.call,
                                      RemoteDigipeater.geom,
-                                     RemoteDigipeater.heard).all()
+                                     RemoteDigipeater.heard,
+                                     RemoteDigipeater.ports).all()
 
 existing_digipeaters_data = {}
 for digipeater in existing_digipeaters:
@@ -123,7 +124,8 @@ for digipeater in existing_digipeaters:
     lon = point.x
     lat = point.y
     heard = digipeater[2]
-    existing_digipeaters_data[digipeater_call] = (lat, lon, heard)
+    ports = digipeater[3]
+    existing_digipeaters_data[digipeater_call] = (lat, lon, heard, ports)
 
 # Get all remote MHeard list
 existing_remote_mh_results = session.query(RemotelyHeardStation.remote_call,
@@ -639,6 +641,24 @@ for digipeater in digipeater_list.items():
                 session.add(remote_digi)
                 new_digipeater_counter += 1
             added_digipeaters.append(digipeater_call)
+
+    # Add new digipeater port
+    elif digipeater_call in existing_digipeaters_data and \
+            digipeater_call not in added_digipeaters:
+        existing_digi_ports = existing_digipeaters_data.get(digipeater_call)[3]
+
+        port_list = None
+        if not existing_digi_ports:
+            port_list = port_name
+        else:
+            port_list = existing_digi_ports
+            if port_name not in port_list:
+                port_list += ',' + port_name
+
+        if not existing_digi_ports or port_name not in existing_digi_ports:
+            session.query(RemoteDigipeater). \
+                filter(RemoteDigipeater.call == digipeater_call). \
+                update({RemoteDigipeater.ports: port_list})
 
     elif time_diff and time_diff.days >= refresh_days:
         digipeater_info = get_info(digipeater_call)
