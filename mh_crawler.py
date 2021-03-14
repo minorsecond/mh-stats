@@ -732,9 +732,10 @@ for operator in all_operators:
 
         if remote_call.split('-')[0] == call and band:
             if band not in operating_bands:
-                operating_bands += f"{band},"
+                operating_bands += f",{band}"
 
-    operating_bands = operating_bands.rstrip(',')
+    # Remove leading comma
+    operating_bands = operating_bands.lstrip(',').rstrip(',')
 
     if len(operating_bands) > 0:
         session.query(RemoteOperator).filter(
