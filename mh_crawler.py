@@ -702,7 +702,7 @@ for digipeater in digipeater_list.items():
 if verbose:
     print("Updating bands columns")
 case_statement = "UPDATE public.remote_mh SET band = CASE " \
-                 "WHEN (port LIKE '%44_.%' OR port LIKE '44_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '70CM' " \
+                 "WHEN (port LIKE '%4__.%' OR port LIKE '4__.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '70CM' " \
                  "WHEN (port LIKE '%14_.%' OR port LIKE '14_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '2M' " \
                  "WHEN (port LIKE '%22_.%' OR port LIKE '22_.%') THEN '1.25M' " \
                  "WHEN (port LIKE '% 14.%' OR port LIKE '14.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '% 7.%' THEN '20M' " \
@@ -712,8 +712,7 @@ case_statement = "UPDATE public.remote_mh SET band = CASE " \
 session.execute(case_statement)
 
 # Populate bands column for remote_operators table
-all_operators = session.query(RemoteOperator).filter(
-    RemoteOperator.bands.is_(None))
+all_operators = session.query(RemoteOperator).all()
 
 for operator in all_operators:
     operating_bands = ""
@@ -734,6 +733,8 @@ for operator in all_operators:
         if remote_call.split('-')[0] == call and band:
             if band not in operating_bands:
                 operating_bands += f"{band},"
+
+    operating_bands = operating_bands.rstrip(',')
 
     if len(operating_bands) > 0:
         session.query(RemoteOperator).filter(
