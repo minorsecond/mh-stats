@@ -643,26 +643,35 @@ for digipeater in digipeater_list.items():
                 new_digipeater_counter += 1
             added_digipeaters.append(digipeater_call)
 
-    elif time_diff and time_diff.days >= refresh_days:
-        digipeater_info = get_info(digipeater_call)
+    else:
+        if digipeater_call in existing_digipeaters_data:
+            # Update last port and ssid
+            session.query(RemoteDigipeater). \
+                filter(RemoteDigipeater.call == f"{digipeater_call}"). \
+                update({RemoteDigipeater.last_port: port_name,
+                        RemoteDigipeater.ssid: ssid})
+        if time_diff and time_diff.days >= refresh_days:
+            digipeater_info = get_info(digipeater_call)
 
-        if digipeater_info:
-            if verbose:
-                print(f"Adding digipeater {digipeater_call}")
-            lat = float(digipeater_info[0])
-            lon = float(digipeater_info[1])
-            grid = digipeater_info[2]
-
-            if lat is not None and lon is not None:
+            if digipeater_info:
                 if verbose:
-                    print(f"Updating digipeater coordinates for {digipeater}")
-                session.query(RemoteDigipeater).filter(
-                    RemoteDigipeater.call == f"{digipeater_call}").update(
-                    {RemoteDigipeater.geom: f"SRID=4326;POINT({lon} {lat})"},
-                    synchronize_session="fetch")
-                updated_digipeater_counter += 1
+                    print(f"Adding digipeater {digipeater_call}")
+                lat = float(digipeater_info[0])
+                lon = float(digipeater_info[1])
+                grid = digipeater_info[2]
 
-        # Add new digipeater port
+                if lat is not None and lon is not None:
+                    if verbose:
+                        print(
+                            f"Updating digipeater coordinates for {digipeater}")
+                    session.query(RemoteDigipeater).filter(
+                        RemoteDigipeater.call == f"{digipeater_call}").update(
+                        {
+                            RemoteDigipeater.geom: f"SRID=4326;POINT({lon} {lat})"},
+                        synchronize_session="fetch")
+                    updated_digipeater_counter += 1
+
+            # Add new digipeater port
     if digipeater_call in existing_digipeaters_data and \
             digipeater_call not in added_digipeaters:
         existing_digi_ports = \
