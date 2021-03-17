@@ -575,7 +575,6 @@ added_digipeaters = []
 new_digipeater_counter = 0
 updated_digipeater_counter = 0
 for digipeater in digipeater_list.items():
-    print(digipeater)
     lat = None
     lon = None
     grid = None
@@ -610,7 +609,7 @@ for digipeater in digipeater_list.items():
     except IndexError:
         last_seen = None  # New digi
         time_diff = None
-    print(time_diff)
+
     if digipeater_call not in existing_digipeaters_data and \
             digipeater_call not in added_digipeaters:
 
