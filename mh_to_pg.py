@@ -9,7 +9,7 @@ from sqlalchemy import func, desc
 from sqlalchemy.orm import sessionmaker
 
 from common import get_info, get_conf, telnet_connect
-from models.db import engine, LocallyHeardStation, Operator, \
+from models.db import local_engine, LocallyHeardStation, Operator, \
     Digipeater
 
 parser = argparse.ArgumentParser(description="Scrape BPQ node")
@@ -22,7 +22,7 @@ refresh_days = 7
 conf = get_conf()
 
 # Connect to PG
-Session = sessionmaker(bind=engine)
+Session = sessionmaker(bind=local_engine)
 session = Session()
 
 # Connect to PG

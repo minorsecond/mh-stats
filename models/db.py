@@ -19,11 +19,14 @@ if debug:
 else:
     con_string = f"postgresql://{conf['pg_user']}:{conf['pg_pw']}@" \
                  f"{conf['pg_host']}/{conf['pg_db']}"
+    replica_con = f"postgresql://{conf['pg_user']}:{conf['pg_pw']}@" \
+                  f"{conf['pg_r_host']}/{conf['pg_db']}"
+    remote_engine = create_engine(replica_con)
 
-engine = create_engine(con_string)
+local_engine = create_engine(con_string)
 Base = declarative_base()
 
-__all__ = ["engine", "BadGeocode", "CrawledNode", "Digipeater",
+__all__ = ["local_engine", "BadGeocode", "CrawledNode", "Digipeater",
            "LocallyHeardStation", "Node", "Operator", "RemoteDigipeater",
            "RemotelyHeardStation", "RemoteOperator"]
 
@@ -73,7 +76,7 @@ class CrawledNode(Base):
                                      primaryjoin="and_(RemoteDigipeater"
                                                  ".parent_call==CrawledNode"
                                                  ".node_id, "
-                                                 "RemoteDigipeater.port"
+                                                 "RemoteDigipeater.last_port"
                                                  "==CrawledNode.port_name)")
 
 
@@ -149,7 +152,7 @@ class RemoteDigipeater(Base):
     heard = Column(Boolean, nullable=False)
     ssid = Column(Integer, nullable=True)
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
-    port = Column(String, nullable=False)
+    last_port = Column(String, nullable=False)
     uid = Column(String, nullable=False)
     ports = Column(String, nullable=False)
 
@@ -192,14 +195,14 @@ class RemoteOperator(Base):
     uid = Column(String, nullable=False)
 
 
-BadGeocode.__table__.create(engine, checkfirst=True)
-CrawledNode.__table__.create(engine, checkfirst=True)
-Digipeater.__table__.create(engine, checkfirst=True)
-LocallyHeardStation.__table__.create(engine, checkfirst=True)
-Node.__table__.create(engine, checkfirst=True)
-Operator.__table__.create(engine, checkfirst=True)
-RemoteDigipeater.__table__.create(engine, checkfirst=True)
-RemotelyHeardStation.__table__.create(engine, checkfirst=True)
-RemoteOperator.__table__.create(engine, checkfirst=True)
+BadGeocode.__table__.create(local_engine, checkfirst=True)
+CrawledNode.__table__.create(local_engine, checkfirst=True)
+Digipeater.__table__.create(local_engine, checkfirst=True)
+LocallyHeardStation.__table__.create(local_engine, checkfirst=True)
+Node.__table__.create(local_engine, checkfirst=True)
+Operator.__table__.create(local_engine, checkfirst=True)
+RemoteDigipeater.__table__.create(local_engine, checkfirst=True)
+RemotelyHeardStation.__table__.create(local_engine, checkfirst=True)
+RemoteOperator.__table__.create(local_engine, checkfirst=True)
 
-Base.metadata.create_all(engine, checkfirst=True)
+Base.metadata.create_all(local_engine, checkfirst=True)

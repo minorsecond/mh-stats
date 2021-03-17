@@ -12,7 +12,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import true, false
 
 from common import get_info, get_conf, telnet_connect, node_connect
-from models.db import engine, CrawledNode, RemoteOperator, RemoteDigipeater, \
+from models.db import local_engine, CrawledNode, RemoteOperator, \
+    RemoteDigipeater, \
     RemotelyHeardStation, BadGeocode
 
 refresh_days = 1
@@ -37,7 +38,7 @@ if node_to_crawl:
 year = datetime.date.today().year
 
 # Connect to PG
-Session = sessionmaker(bind=engine)
+Session = sessionmaker(bind=local_engine)
 
 last_crawled_port_name = None
 node_to_crawl_info = {}
@@ -574,6 +575,7 @@ added_digipeaters = []
 new_digipeater_counter = 0
 updated_digipeater_counter = 0
 for digipeater in digipeater_list.items():
+    print(digipeater)
     lat = None
     lon = None
     grid = None
@@ -608,7 +610,7 @@ for digipeater in digipeater_list.items():
     except IndexError:
         last_seen = None  # New digi
         time_diff = None
-
+    print(time_diff)
     if digipeater_call not in existing_digipeaters_data and \
             digipeater_call not in added_digipeaters:
 
@@ -635,30 +637,12 @@ for digipeater in digipeater_list.items():
                                                heard=heard,
                                                ssid=ssid,
                                                geom=f'SRID=4326;POINT({lon} {lat})',
-                                               port=port_name,
+                                               last_port=port_name,
                                                uid=f"{node_to_crawl}-{port_name}")
 
                 session.add(remote_digi)
                 new_digipeater_counter += 1
             added_digipeaters.append(digipeater_call)
-
-    # Add new digipeater port
-    elif digipeater_call in existing_digipeaters_data and \
-            digipeater_call not in added_digipeaters:
-        existing_digi_ports = existing_digipeaters_data.get(digipeater_call)[3]
-
-        port_list = None
-        if not existing_digi_ports:
-            port_list = port_name
-        else:
-            port_list = existing_digi_ports
-            if port_name not in port_list:
-                port_list += ',' + port_name
-
-        if not existing_digi_ports or port_name not in existing_digi_ports:
-            session.query(RemoteDigipeater). \
-                filter(RemoteDigipeater.call == digipeater_call). \
-                update({RemoteDigipeater.ports: port_list})
 
     elif time_diff and time_diff.days >= refresh_days:
         digipeater_info = get_info(digipeater_call)
@@ -678,6 +662,25 @@ for digipeater in digipeater_list.items():
                     {RemoteDigipeater.geom: f"SRID=4326;POINT({lon} {lat})"},
                     synchronize_session="fetch")
                 updated_digipeater_counter += 1
+
+        # Add new digipeater port
+    if digipeater_call in existing_digipeaters_data and \
+            digipeater_call not in added_digipeaters:
+        existing_digi_ports = \
+            existing_digipeaters_data.get(digipeater_call)[3]
+
+        port_list = None
+        if not existing_digi_ports:
+            port_list = port_name
+        else:
+            port_list = existing_digi_ports
+            if port_name not in port_list:
+                port_list += ',' + port_name
+
+        if not existing_digi_ports or port_name not in existing_digi_ports:
+            session.query(RemoteDigipeater). \
+                filter(RemoteDigipeater.call == digipeater_call). \
+                update({RemoteDigipeater.ports: port_list})
 
     # Update timestamp
     if last_seen and last_seen < timestamp:

@@ -7,9 +7,9 @@ import re
 from sqlalchemy.orm import sessionmaker
 
 from common import get_info, get_conf, telnet_connect, node_connect
-from models.db import engine, Node, BadGeocode
+from models.db import local_engine, Node, BadGeocode
 
-Session = sessionmaker(bind=engine)
+Session = sessionmaker(bind=local_engine)
 session = Session()
 
 parser = argparse.ArgumentParser(description="Get node to crawl")
