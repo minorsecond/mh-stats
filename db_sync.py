@@ -1,3 +1,4 @@
+#!/bin/python3
 # Synchronize local PRM database with remote
 
 from sqlalchemy.orm import sessionmaker
