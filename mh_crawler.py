@@ -286,7 +286,7 @@ for item in mh_output:
             hours_passed = int(time_passed.split(':')[1])
             minutes_passed = int(time_passed.split(':')[2])
             seconds_passed = int(time_passed.split(':')[3])
-        except ValueError as v:
+        except ValueError or IndexError as v:
             print(f"Error trying to parse time: {v}")
             exit()
 
@@ -642,10 +642,15 @@ for digipeater in digipeater_list.items():
                 session.add(remote_digi)
                 new_digipeater_counter += 1
             added_digipeaters.append(digipeater_call)
+        elif verbose:
+            print(f"Could not get info for digipeater: {digipeater_call}")
 
     else:
         if digipeater_call in existing_digipeaters_data:
             # Update last port and ssid and parent call
+            if verbose:
+                print(
+                    f"Updating parent node, ssid, and port name for {digipeater_call}")
             session.query(RemoteDigipeater). \
                 filter(RemoteDigipeater.call == f"{digipeater_call}"). \
                 update({RemoteDigipeater.parent_call: node_to_crawl,
