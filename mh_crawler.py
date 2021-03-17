@@ -645,10 +645,11 @@ for digipeater in digipeater_list.items():
 
     else:
         if digipeater_call in existing_digipeaters_data:
-            # Update last port and ssid
+            # Update last port and ssid and parent call
             session.query(RemoteDigipeater). \
                 filter(RemoteDigipeater.call == f"{digipeater_call}"). \
-                update({RemoteDigipeater.last_port: port_name,
+                update({RemoteDigipeater.parent_call: node_to_crawl,
+                        RemoteDigipeater.last_port: port_name,
                         RemoteDigipeater.ssid: ssid})
         if time_diff and time_diff.days >= refresh_days:
             digipeater_info = get_info(digipeater_call)
