@@ -4,10 +4,13 @@ import argparse
 import datetime
 import re
 
+from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.sql.expression import true, false
 
 from common import get_info, get_conf, telnet_connect, node_connect
-from models.db import local_engine, Node, BadGeocode
+from models.db import local_engine, Node, BadGeocode, CrawledNode
 
 Session = sessionmaker(bind=local_engine)
 session = Session()
@@ -15,14 +18,50 @@ session = Session()
 parser = argparse.ArgumentParser(description="Get node to crawl")
 parser.add_argument('--node', metavar='N', type=str, help="Node name to crawl")
 parser.add_argument('-v', action='store_true', help='Verbose log')
+parser.add_argument('-auto', action='store_true',
+                    help="Pick a node to crawl automatically")
 args = parser.parse_args()
 node_to_crawl = args.node
 verbose = args.v
+auto = args.auto
 conf = get_conf()
+refresh_days = 3
+
+node_to_crawl_info = None
+if auto and node_to_crawl:
+    print("You can't enter node to crawl & auto mode")
+    exit()
+
+elif auto:
+    refresh_time = datetime.datetime.utcnow().replace(microsecond=0) - \
+                   datetime.timedelta(days=refresh_days)
+    # Get a node that hasn't been crawled in 2 weeks
+
+    try:
+        # Get a node port that doesn't need check and is active
+        crawled_nodes = session.query(CrawledNode).filter(
+            CrawledNode.last_crawled < refresh_time). \
+            filter(CrawledNode.needs_check == false(),
+                   CrawledNode.active_port == true()). \
+            order_by(func.random()).limit(1).one_or_none()
+        if crawled_nodes:
+            node_to_crawl_info = {
+                crawled_nodes.node_id: (
+                    crawled_nodes.id,
+                    crawled_nodes.port,
+                    crawled_nodes.last_crawled,
+                    crawled_nodes.port_name
+                )
+            }
+    except NoResultFound:
+        print("Nothing to crawl")
+        exit()
+elif not node_to_crawl:
+    print("You must enter a node to crawl.")
+    exit()
 
 now = datetime.datetime.utcnow().replace(microsecond=0)
 print(f"Run at {now}")
-refresh_days = 7
 
 # Connect to PG
 
@@ -47,6 +86,11 @@ for bad_call in bad_geocode_results:
 
 # Connect to local telnet server
 tn = telnet_connect()
+
+if auto:
+    # Get node to crawl from dict
+    node_to_crawl = list(node_to_crawl_info.keys())[0]
+    print(f"Auto crawling node {node_to_crawl}")
 
 if node_to_crawl:  # Connect to remote
     tn = node_connect(node_to_crawl, tn)
