@@ -4,12 +4,10 @@ import argparse
 import datetime
 import re
 
-from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.sql.expression import true, false
 
-from common import get_info, get_conf, telnet_connect, node_connect
+from common import get_info, get_conf, telnet_connect, node_connect, \
+    auto_node_selector
 from models.db import local_engine, Node, BadGeocode, CrawledNode
 
 Session = sessionmaker(bind=local_engine)
@@ -33,29 +31,8 @@ if auto and node_to_crawl:
     exit()
 
 elif auto:
-    refresh_time = datetime.datetime.utcnow().replace(microsecond=0) - \
-                   datetime.timedelta(days=refresh_days)
-    # Get a node that hasn't been crawled in 2 weeks
+    node_to_crawl_info = auto_node_selector(CrawledNode, session, refresh_days)
 
-    try:
-        # Get a node port that doesn't need check and is active
-        crawled_nodes = session.query(CrawledNode).filter(
-            CrawledNode.last_crawled < refresh_time). \
-            filter(CrawledNode.needs_check == false(),
-                   CrawledNode.active_port == true()). \
-            order_by(func.random()).limit(1).one_or_none()
-        if crawled_nodes:
-            node_to_crawl_info = {
-                crawled_nodes.node_id: (
-                    crawled_nodes.id,
-                    crawled_nodes.port,
-                    crawled_nodes.last_crawled,
-                    crawled_nodes.port_name
-                )
-            }
-    except NoResultFound:
-        print("Nothing to crawl")
-        exit()
 elif not node_to_crawl:
     print("You must enter a node to crawl.")
     exit()

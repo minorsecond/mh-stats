@@ -1,8 +1,12 @@
 import configparser
+import datetime
 import re
 from telnetlib import Telnet
 
 import requests
+from sqlalchemy import func
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.sql.expression import true, false
 
 
 def get_conf():
@@ -100,3 +104,44 @@ def node_connect(node_name, tn):
         tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
         tn.read_until(b"\n", timeout=20)
         return tn
+
+
+def auto_node_selector(CrawledNode, session, refresh_days):
+    """
+    Automatically get a node to crawl
+    :param CrawledNode: a DB Object
+    :param session: A session object
+    :param refresh_days: Days ago to select from DB
+    :return: A dict containing (id, port, last_crawled, port_name)
+    """
+    node_to_crawl_info = None
+    refresh_time = datetime.datetime.utcnow().replace(microsecond=0) - \
+                   datetime.timedelta(days=refresh_days)
+    # Get a node that hasn't been crawled in 2 weeks
+
+    try:
+        # Get a node port that doesn't need check and is active
+        crawled_nodes = session.query(CrawledNode).filter(
+            CrawledNode.last_crawled < refresh_time). \
+            filter(CrawledNode.needs_check == false(),
+                   CrawledNode.active_port == true()). \
+            order_by(func.random()).limit(1).one_or_none()
+        if crawled_nodes:
+            node_to_crawl_info = {
+                crawled_nodes.node_id: (
+                    crawled_nodes.id,
+                    crawled_nodes.port,
+                    crawled_nodes.last_crawled,
+                    crawled_nodes.port_name
+                )
+            }
+
+    except NoResultFound:
+        print("Nothing to crawl")
+        exit()
+
+    if node_to_crawl_info is None:
+        print("Nothing to crawl")
+        exit()
+
+    return node_to_crawl_info

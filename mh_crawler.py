@@ -6,12 +6,12 @@ import re
 from string import digits
 
 from geoalchemy2.shape import to_shape
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.sql.expression import true, false
+from sqlalchemy.sql.expression import true
 
-from common import get_info, get_conf, telnet_connect, node_connect
+from common import get_info, get_conf, telnet_connect, node_connect, \
+    auto_node_selector
 from models.db import local_engine, CrawledNode, RemoteOperator, \
     RemoteDigipeater, \
     RemotelyHeardStation, BadGeocode
@@ -50,30 +50,7 @@ if auto and node_to_crawl:
     exit()
 
 elif auto and not debug:
-    refresh_time = datetime.datetime.utcnow().replace(microsecond=0) - \
-                   datetime.timedelta(days=refresh_days)
-    # Get a node that hasn't been crawled in 2 weeks
-
-    try:
-        # Get a node port that doesn't need check and is active
-        crawled_nodes = session.query(CrawledNode).filter(
-            CrawledNode.last_crawled < refresh_time). \
-            filter(CrawledNode.needs_check == false(),
-                   CrawledNode.active_port == true()). \
-            order_by(func.random()).limit(1).one_or_none()
-        if crawled_nodes:
-            node_to_crawl_info = {
-                crawled_nodes.node_id: (
-                    crawled_nodes.id,
-                    crawled_nodes.port,
-                    crawled_nodes.last_crawled,
-                    crawled_nodes.port_name
-                )
-            }
-    except NoResultFound:
-        print("Nothing to crawl")
-        exit()
-
+    node_to_crawl_info = auto_node_selector(CrawledNode, session, refresh_days)
 elif not node_to_crawl and not debug:
     print("You must enter a node to crawl.")
     exit()
