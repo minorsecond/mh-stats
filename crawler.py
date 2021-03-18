@@ -23,7 +23,7 @@ node_to_crawl = args.node
 verbose = args.v
 auto = args.auto
 conf = get_conf()
-refresh_days = 3
+refresh_days = 1
 
 node_to_crawl_info = None
 if auto and node_to_crawl:
