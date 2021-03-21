@@ -239,8 +239,6 @@ for node_name_pair in clean_call_list:
                     # Update timestamp if call has been geocoded but now can't
                     # get coords
                     elif not info and last_checked is not None:
-                        print(
-                            f"Updating timestamp & node name for {call_part}")
                         session.query(Node). \
                             filter(Node.call == call_part). \
                             update({Node.last_check: last_check,
