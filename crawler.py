@@ -266,8 +266,7 @@ for node_name_pair in clean_call_list:
 
                             session.add(new_node)
 
-                            if verbose:
-                                print(f"Added {base_call} to node table")
+                            print(f"Added {base_call} to node table")
                             new_nodes += 1
                             # Remove from bad geocode table
                             if base_call in bad_geocode_calls:
