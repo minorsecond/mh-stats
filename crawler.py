@@ -33,10 +33,6 @@ if auto and node_to_crawl:
 elif auto:
     node_to_crawl_info = auto_node_selector(CrawledNode, session, refresh_days)
 
-elif not node_to_crawl:
-    print("You must enter a node to crawl.")
-    exit()
-
 now = datetime.datetime.utcnow().replace(microsecond=0)
 print(f"Run at {now}")
 
@@ -209,6 +205,12 @@ for node_name_pair in clean_call_list:
                     last_check = now
                     order = 1
 
+                    node_part = None
+                    if part == 0:
+                        node_part = name_second_part
+                    elif part == 1:
+                        node_part = name_first_part
+
                     if info:  # Valid call, but maybe no coords
                         if '-' in check_call:
                             ssid = re.sub(r'[^\w]', ' ',
@@ -230,18 +232,21 @@ for node_name_pair in clean_call_list:
                             if verbose:
                                 print(f"Error getting coords for {base_call}")
 
-                        node_par = None
-                        if part == 0:
-                            node_part = name_second_part
-                        elif part == 1:
-                            node_part = name_first_part
-
                         if node_part is None:
                             node_part = base_call
 
-                    else:
-                        if verbose:
-                            print(f"Couldn't get info for {call_part}")
+                    # Update timestamp if call has been geocoded but now can't
+                    # get coords
+                    elif not info and last_checked is not None:
+                        print(
+                            f"Updating timestamp & node name for {call_part}")
+                        session.query(Node). \
+                            filter(Node.call == call_part). \
+                            update({Node.last_check: last_check,
+                                    Node.node_name: node_part},
+                                   synchronize_session="fetch")
+                    elif verbose:
+                        print(f"Couldn't get info for {call_part}")
 
                     if base_call not in first_order_nodes and base_call not in processed_calls:
                         if lon is not None and lat is not None:
@@ -323,7 +328,7 @@ for node_name_pair in clean_call_list:
                 print(
                     f"Not processing {node_name_string} as not enough days have passed"
                     f" since last checked")
-        processed_node_names.append(base_call)
+        processed_node_names.append(node_name_string)
 
 if new_nodes == 0:
     print("No nodes added")
