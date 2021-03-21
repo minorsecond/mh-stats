@@ -23,6 +23,7 @@ node_to_crawl = args.node
 verbose = args.v
 auto = args.auto
 conf = get_conf()
+info_method = conf['info_method']
 refresh_days = 1
 
 node_to_crawl_info = None
@@ -200,7 +201,7 @@ for node_name_pair in clean_call_list:
                         call_part = check_call
                     if verbose:
                         print(f"Processing node name part: {call_part}")
-                    info = get_info(call_part)
+                    info = get_info(call_part, info_method)
                     parent_call = call_part
                     last_check = now
                     order = 1

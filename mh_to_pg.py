@@ -20,6 +20,7 @@ verbose = args.v
 refresh_days = 7
 
 conf = get_conf()
+info_method = conf['info_method']
 
 # Connect to PG
 Session = sessionmaker(bind=local_engine)
@@ -187,7 +188,7 @@ for item in radio_mh_list:
     # Write Ops table if
     if op_call not in existing_ops_data and op_call not in current_op_list:
         # add coordinates & grid
-        info = get_info(call.split('-')[0])
+        info = get_info(call.split('-')[0], info_method)
 
         if info:
             lat = float(info[0])
@@ -210,7 +211,7 @@ for item in radio_mh_list:
             current_op_list:
         # add coordinates & grid
 
-        info = get_info(call.split('-')[0])
+        info = get_info(call.split('-')[0], info_method)
 
         if info:
             lat = float(info[0])
@@ -270,7 +271,7 @@ for digipeater in digipeater_list.items():
     if digipeater_call not in existing_digipeaters_data and \
             digipeater_call not in added_digipeaters:
 
-        digipeater_info = get_info(digipeater_call)
+        digipeater_info = get_info(digipeater_call, info_method)
 
         if digipeater_info:
             if verbose:
@@ -293,7 +294,7 @@ for digipeater in digipeater_list.items():
             added_digipeaters.append(digipeater_call)
 
     elif timedelta and timedelta.days >= refresh_days:
-        digipeater_info = get_info(digipeater_call)
+        digipeater_info = get_info(digipeater_call, info_method)
 
         if digipeater_info:
             if verbose:

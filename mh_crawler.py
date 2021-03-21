@@ -16,7 +16,7 @@ from models.db import local_engine, CrawledNode, RemoteOperator, \
     RemoteDigipeater, \
     RemotelyHeardStation, BadGeocode
 
-refresh_days = 1
+refresh_days = -1
 debug = False
 
 port_name = None
@@ -31,6 +31,7 @@ node_to_crawl = args.node
 auto = args.auto
 verbose = args.v
 conf = get_conf()
+info_method = conf['info_method']
 
 if node_to_crawl:
     node_to_crawl = node_to_crawl.strip().upper()
@@ -453,13 +454,13 @@ for item in mh_list:
         # add coordinates & grid
         if '-' in call:
             try:
-                info = get_info(call.split('-')[0])
+                info = get_info(call.split('-')[0], info_method)
             except Exception as e:
                 print(f"Error {e} on {call}")
 
         else:
             try:
-                info = get_info(call)
+                info = get_info(call, info_method)
             except Exception as e:
                 print(f"Error {e} on {call}")
 
@@ -508,8 +509,7 @@ for item in mh_list:
     elif op_call not in current_op_list:  # Update existing op
         if time_diff and time_diff.days >= refresh_days:
             # add coordinates & grid
-
-            info = get_info(call.split('-')[0])
+            info = get_info(call.split('-')[0], info_method)
 
             if info:
                 try:
@@ -587,10 +587,11 @@ for digipeater in digipeater_list.items():
         last_seen = None  # New digi
         time_diff = None
 
+    # Add new digipeater
     if digipeater_call not in existing_digipeaters_data and \
             digipeater_call not in added_digipeaters:
 
-        digipeater_info = get_info(digipeater_call)
+        digipeater_info = get_info(digipeater_call, info_method)
 
         if digipeater_info:
             if verbose:
@@ -635,7 +636,7 @@ for digipeater in digipeater_list.items():
                         RemoteDigipeater.last_port: port_name,
                         RemoteDigipeater.ssid: ssid})
         if time_diff and time_diff.days >= refresh_days:
-            digipeater_info = get_info(digipeater_call)
+            digipeater_info = get_info(digipeater_call, info_method)
 
             if digipeater_info:
                 if verbose:

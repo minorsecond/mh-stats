@@ -8,6 +8,8 @@ from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import true, false
 
+import qrz
+
 
 def get_conf():
     """
@@ -28,13 +30,14 @@ def get_conf():
         'pg_host': config['postgres']['host'],
         'pg_r_host': config['postgres']['rhost'],
         'pg_db': config['postgres']['db'],
-        'pg_port': config['postgres']['port']
+        'pg_port': config['postgres']['port'],
+        'info_method': config['mhcrawler']['info_method']
     }
 
     return config_options
 
 
-def get_info(callsign):
+def get_info(callsign, method):
     """
     Get info from hamdb
     :param callsign: Callsign string
@@ -48,17 +51,27 @@ def get_info(callsign):
     if callsign:
         callsign = re.sub(r'[^\w]', ' ', callsign)
 
-        req = f"http://api.hamdb.org/{callsign}/json/mh-stats"
-        http_results = requests.get(req).json()
+        if method == "hamdb":
+            req = f"http://api.hamdb.org/{callsign}/json/mh-stats"
+            http_results = requests.get(req).json()
 
-        lat = http_results['hamdb']['callsign']['lat']
-        lon = http_results['hamdb']['callsign']['lon']
-        grid = http_results['hamdb']['callsign']['grid']
+            lat = http_results['hamdb']['callsign']['lat']
+            lon = http_results['hamdb']['callsign']['lon']
+            grid = http_results['hamdb']['callsign']['grid']
+
+            if lat == "NOT_FOUND" or lon == "NOT_FOUND" or grid == "NOT_FOUND":
+                return None
+        else:
+            try:
+                qrz_instance = qrz.QRZ(cfg="settings.cfg")
+                http_results = qrz_instance.callsign(callsign)
+                lat = http_results['lat']
+                lon = http_results['lon']
+                grid = http_results['grid']
+            except qrz.CallsignNotFound or qrz.QRZsessionNotFound:
+                return None
 
     else:
-        return None
-
-    if lat == "NOT_FOUND" or lon == "NOT_FOUND" or grid == "NOT_FOUND":
         return None
 
     return (lat, lon, grid)
