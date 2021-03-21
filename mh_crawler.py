@@ -16,7 +16,7 @@ from models.db import local_engine, CrawledNode, RemoteOperator, \
     RemoteDigipeater, \
     RemotelyHeardStation, BadGeocode
 
-refresh_days = -1
+refresh_days = 1
 debug = False
 
 port_name = None
