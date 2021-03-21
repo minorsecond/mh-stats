@@ -614,7 +614,8 @@ for digipeater in digipeater_list.items():
                                                ssid=ssid,
                                                geom=f'SRID=4326;POINT({lon} {lat})',
                                                last_port=port_name,
-                                               uid=f"{node_to_crawl}-{port_name}")
+                                               uid=f"{node_to_crawl}-{port_name}",
+                                               ports=port_name)
 
                 session.add(remote_digi)
                 new_digipeater_counter += 1
