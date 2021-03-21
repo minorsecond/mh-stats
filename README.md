@@ -16,19 +16,27 @@ You must first set up a configuration file, named settings.cfg in the root proje
 
 [qrz]
 username=YOUR_QRZ_USERNAME
+
 password=YOUR_QRZ_PASSWORD
 
 [telnet]
 ip=YOUR_BPQ_NODE_IP_ADDRESS
+
 port=YOUR_BPQ_TELNET_PORT
+
 username=YOUR_BPQ_USERNAME
+
 password=YOUR_BPQ_PASSWORD
 
 [postgres]
 host=YOUR_PG_HOST_IP
+
 port=YOUR_PG_PORT
+
 username=YOUR_PG_USERNAME
+
 password=YOUR_PG_PASSWORD
+
 db=PG_DB_NAME
 
 [mhcrawler]
