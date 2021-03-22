@@ -131,6 +131,7 @@ class Operator(Base):
     lastheard = Column(DateTime, default=datetime.now())
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
     grid = Column(String, nullable=False)
+    lastcheck = Column(DateTime, default=datetime.now())
 
 
 class RemoteDigipeater(Base):

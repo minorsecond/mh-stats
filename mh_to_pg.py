@@ -137,15 +137,25 @@ for item in radio_mh_list:
 
     timestamp = item[1]
 
+    # Get last check time for determining if we should get a new geocode
     try:
         last_heard = session.query(Operator.lastheard). \
             filter(Operator.call == op_call). \
             order_by(desc(Operator.lastheard)).first()
-        if last_heard:
+
+        last_check = session.query(Operator.lastcheck).\
+            filter(Operator.call == op_call).\
+            order_by(desc(Operator.lastcheck)).first()
+
+        if last_heard is not None:
             last_heard = last_heard[0]
-            timedelta = (now - last_heard)
+
+        if last_check is not None:
+            last_check = last_check[0]
+
+        if last_check is not None:
+            timedelta = (now - last_check)
         else:
-            last_heard = None
             timedelta = None
     except IndexError:
         timedelta = None
@@ -201,13 +211,14 @@ for item in radio_mh_list:
                 call=op_call,
                 lastheard=timestamp,
                 geom=f'SRID=4326;POINT({lon} {lat})',
-                grid=grid
+                grid=grid,
+                lastcheck=now
             )
             session.add(new_operator)
             current_op_list.append(op_call)
             new_op_counter += 1
 
-    elif timedelta and timedelta.days >= refresh_days and op_call not in \
+    elif timedelta is None or timedelta.days >= refresh_days and op_call not in \
             current_op_list:
         # add coordinates & grid
 
@@ -223,8 +234,9 @@ for item in radio_mh_list:
                 print(f"Updating coordinates for {op_call}")
             session.query(Operator).filter(Operator.call == op_call).update(
                 {Operator.geom: f'SRID=4326;POINT({lon} {lat})',
-                 Operator.lastheard: last_heard,
-                 Operator.grid: grid},
+                 Operator.lastheard: timestamp,
+                 Operator.grid: grid,
+                 Operator.lastcheck: now},
                 synchronize_session="fetch")
 
         current_op_list.append(op_call)
