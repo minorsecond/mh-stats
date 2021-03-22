@@ -19,9 +19,6 @@ if debug:
 else:
     con_string = f"postgresql://{conf['pg_user']}:{conf['pg_pw']}@" \
                  f"{conf['pg_host']}/{conf['pg_db']}"
-    replica_con = f"postgresql://{conf['pg_user']}:{conf['pg_pw']}@" \
-                  f"{conf['pg_r_host']}/{conf['pg_db']}"
-    remote_engine = create_engine(replica_con)
 
 local_engine = create_engine(con_string)
 Base = declarative_base()
