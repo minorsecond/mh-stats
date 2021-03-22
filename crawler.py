@@ -203,7 +203,7 @@ for node_name_pair in clean_call_list:
                     if verbose:
                         print(f"Processing node name part: {call_part}")
                     info = get_info(call_part, info_method)
-                    parent_call = call_part
+                    parent_call = call_part.upper()
                     last_check = now
                     order = 1
 
@@ -221,7 +221,7 @@ for node_name_pair in clean_call_list:
                         else:
                             ssid = None
 
-                        base_call = call_part
+                        base_call = call_part.upper()
 
                         try:
                             lat = float(info[0])
