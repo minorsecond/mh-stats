@@ -270,19 +270,28 @@ for digipeater in digipeater_list.items():
         last_seen = session.query(Digipeater.lastheard).filter(
             Digipeater.call == digipeater_call).order_by(
             desc(Digipeater.lastheard)).first()
-        if last_seen:
+
+        last_check = session.query(Digipeater.lastcheck).\
+            filter(Digipeater.call == digipeater_call).\
+            order_by(desc(Digipeater.lastcheck)).first()
+
+        if last_seen is not None:
             last_seen = last_seen[0]
-            timedelta = (now - last_seen)
+
+        if last_check is not None:
+            last_check = last_check[0]
+
+        if last_check is not None:
+            timedelta = (now - last_check)
         else:
-            last_seen = None
             timedelta = None
+
     except IndexError:
         last_seen = None  # New digi
         timedelta = None
 
     if digipeater_call not in existing_digipeaters_data and \
             digipeater_call not in added_digipeaters:
-
         digipeater_info = get_info(digipeater_call, info_method)
 
         if digipeater_info:
@@ -298,26 +307,28 @@ for digipeater in digipeater_list.items():
                 grid=grid,
                 geom=f'SRID=4326;POINT({lon} {lat})',
                 heard=heard,
-                ssid=ssid
+                ssid=ssid,
+                lastcheck=now
             )
 
             session.add(new_digipeater)
             digipeater_counter += 1
             added_digipeaters.append(digipeater_call)
 
-    elif timedelta and timedelta.days >= refresh_days:
+    elif timedelta is None or timedelta.days >= refresh_days:
         digipeater_info = get_info(digipeater_call, info_method)
 
         if digipeater_info:
             if verbose:
-                print(f"Adding digipeater {digipeater_call}")
+                print(f"Updating digipeater {digipeater_call}")
             lat = float(digipeater_info[0])
             lon = float(digipeater_info[1])
             grid = digipeater_info[2]
 
             session.query(Digipeater). \
                 filter(Digipeater.call == digipeater_call). \
-                update({Digipeater.geom: f'SRID=4326;POINT({lon} {lat})'},
+                update({Digipeater.geom: f'SRID=4326;POINT({lon} {lat})',
+                        Digipeater.lastcheck: now},
                        synchronize_session="fetch")
 
     # Update timestamp

@@ -89,6 +89,7 @@ class Digipeater(Base):
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
     heard = Column(Boolean, nullable=False)
     ssid = Column(Integer, nullable=True)
+    lastcheck = Column(DateTime, default=datetime.now())
 
 
 class LocallyHeardStation(Base):
