@@ -35,7 +35,8 @@ elif auto:
     node_to_crawl_info = auto_node_selector(CrawledNode, session, refresh_days)
 
 now = datetime.datetime.utcnow().replace(microsecond=0)
-print(f"Run at {now}")
+print(f"\n==============================================\n"
+      f"Run at {now}")
 
 # Connect to PG
 

@@ -19,6 +19,9 @@ from models.db import local_engine, CrawledNode, RemoteOperator, \
 refresh_days = 1
 debug = False
 
+print(f"\n==============================================\n"
+      f"Run at {datetime.datetime.utcnow().replace(microsecond=0)}")
+
 port_name = None
 
 parser = argparse.ArgumentParser(description="Crawl BPQ nodes")
