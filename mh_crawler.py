@@ -393,10 +393,25 @@ for item in mh_list:
             filter(RemoteOperator.remote_call == f'{op_call}'). \
             order_by(RemoteOperator.lastheard.desc()).first()
 
+        last_check = session.query(RemoteOperator.lastcheck).\
+            distinct(RemoteOperator.remote_call, RemoteOperator.lastcheck).\
+            filter(RemoteOperator.remote_call == f'{op_call}').\
+            order_by(RemoteOperator.lastcheck.desc()).first()
+
         if last_heard:
             last_heard = last_heard[0]
 
-            time_diff = (now - last_heard)
+        if last_check is not None:
+            last_check = last_check[0]
+
+            if last_check is not None:
+                time_diff = (now - last_check)
+            else:
+                time_diff = None
+
+        else:
+            time_diff = None
+
     except IndexError:
         time_diff = None
         last_heard = None
@@ -485,7 +500,8 @@ for item in mh_list:
                 grid=grid,
                 geom=f'SRID=4326;POINT({lon} {lat})',
                 port=port_name,
-                uid=f"{node_to_crawl}-{port_name}"
+                uid=f"{node_to_crawl}-{port_name}",
+                lastcheck=now
             )
 
             session.add(remote_operator)
@@ -507,7 +523,7 @@ for item in mh_list:
                 bad_geocodes_counter += 1
 
     elif op_call not in current_op_list:  # Update existing op
-        if time_diff and time_diff.days >= refresh_days:
+        if time_diff is None or time_diff.days >= refresh_days:
             # add coordinates & grid
             info = get_info(call.split('-')[0], info_method)
 
@@ -530,7 +546,8 @@ for item in mh_list:
                          RemoteOperator.geom: f"SRID=4326;POINT({lon} {lat})",
                          RemoteOperator.grid: grid,
                          RemoteOperator.port: port_name,
-                         RemoteOperator.uid: f"{node_to_crawl}-{port_name}"},
+                         RemoteOperator.uid: f"{node_to_crawl}-{port_name}",
+                         RemoteOperator.lastcheck: now},
                         synchronize_session="fetch")
                     updated_ops_counter += 1
 
@@ -579,9 +596,24 @@ for digipeater in digipeater_list.items():
             filter(RemoteDigipeater.call == f'{digipeater_call}'). \
             order_by(RemoteDigipeater.lastheard).first()
 
+        last_check = session.query(RemoteDigipeater.lastcheck).\
+            distinct(RemoteDigipeater.call, RemoteDigipeater.lastcheck).\
+            filter(RemoteDigipeater.call == f'{digipeater_call}').\
+            order_by(RemoteDigipeater.lastcheck).first()
+
         if last_seen:
             last_seen = last_seen[0]
-            time_diff = (now - last_seen)
+
+        if last_check is not None:
+            last_check = last_check[0]
+
+            if last_check is not None:
+                time_diff = (now - last_check)
+            else:
+                time_diff = None
+
+        else:
+            time_diff = None
 
     except IndexError:
         last_seen = None  # New digi
@@ -616,7 +648,8 @@ for digipeater in digipeater_list.items():
                                                geom=f'SRID=4326;POINT({lon} {lat})',
                                                last_port=port_name,
                                                uid=f"{node_to_crawl}-{port_name}",
-                                               ports=port_name)
+                                               ports=port_name,
+                                               lastcheck=now)
 
                 session.add(remote_digi)
                 new_digipeater_counter += 1
@@ -635,7 +668,7 @@ for digipeater in digipeater_list.items():
                 update({RemoteDigipeater.parent_call: node_to_crawl,
                         RemoteDigipeater.last_port: port_name,
                         RemoteDigipeater.ssid: ssid})
-        if time_diff and time_diff.days >= refresh_days:
+        if time_diff is None or time_diff.days >= refresh_days:
             digipeater_info = get_info(digipeater_call, info_method)
 
             if digipeater_info:
@@ -649,10 +682,11 @@ for digipeater in digipeater_list.items():
                     if verbose:
                         print(
                             f"Updating digipeater coordinates for {digipeater}")
-                    session.query(RemoteDigipeater).filter(
-                        RemoteDigipeater.call == f"{digipeater_call}").update(
-                        {
-                            RemoteDigipeater.geom: f"SRID=4326;POINT({lon} {lat})"},
+                    session.query(RemoteDigipeater).\
+                        filter(RemoteDigipeater.call == f"{digipeater_call}").\
+                        update({
+                        RemoteDigipeater.geom: f"SRID=4326;POINT({lon} {lat})",
+                        RemoteDigipeater.lastcheck: now},
                         synchronize_session="fetch")
                     updated_digipeater_counter += 1
 

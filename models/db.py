@@ -154,6 +154,7 @@ class RemoteDigipeater(Base):
     last_port = Column(String, nullable=False)
     uid = Column(String, nullable=False)
     ports = Column(String, nullable=False)
+    lastcheck = Column(DateTime, default=datetime.now())
 
 
 class RemotelyHeardStation(Base):
@@ -192,7 +193,7 @@ class RemoteOperator(Base):
     port = Column(String, nullable=False)
     bands = Column(String, nullable=True)
     uid = Column(String, nullable=False)
-
+    lastcheck = Column(DateTime, default=datetime.now())
 
 BadGeocode.__table__.create(local_engine, checkfirst=True)
 CrawledNode.__table__.create(local_engine, checkfirst=True)
