@@ -31,6 +31,9 @@ session = Session()
 now = datetime.datetime.utcnow().replace(microsecond=0)
 year = datetime.date.today().year
 
+print(f"\n==============================================\n"
+      f"Run started at {now}")
+
 tn = telnet_connect()
 tn.write("mhu 1".encode('ascii') + b"\r")
 tn.write(b"\r")
