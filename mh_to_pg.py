@@ -129,7 +129,7 @@ current_op_list = []
 mh_counter = 0
 new_op_counter = 0
 for item in radio_mh_list:
-    call = item[0].strip()
+    call = item[0].strip().upper()
     op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
 
     try:
