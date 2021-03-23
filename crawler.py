@@ -105,12 +105,31 @@ try:
     nt = nt.split(b"***")[0]
     nt = re.sub(b' +', b' ', nt)
     nt = nt.split(b'\r\n')
-    input(f"NT: {nt}")
+
 except Exception as e:
     print(f"Error getting n t info: {e}")
     nt = None
-input(nt)
+
 tn.write(b"bye\r")
+
+nt_data = {}
+if nt:
+    for line in nt:
+        line = line.decode('utf-8')
+        line_split = line.split(' ')
+        call_id_pair = line_split[0]
+        rtt = line_split[1]
+        frames = line_split[2]
+
+        if line_split[4] == 'B':
+            bpq = True
+            hops = line_split[5]
+        else:
+            bpq = False
+            hops = line_split[4]
+
+        nt_data[call_id_pair] = bpq
+
 
 def remove_dupes(call_list):
     "Returns list with one alias:call pair per node"
