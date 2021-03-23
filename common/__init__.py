@@ -102,8 +102,13 @@ def node_connect(node_name, tn):
 
     connect_cmd = f"c {node_name}".encode('ascii')
     print(f"Connecting to {node_name}")
-    tn.write(b"\r\n" + connect_cmd + b"\r")
-    con_results = tn.read_until(b'Connected to', timeout=30)
+
+    try:
+        tn.write(b"\r\n" + connect_cmd + b"\r")
+        con_results = tn.read_until(b'Connected to', timeout=30)
+    except ConnectionResetError:
+        print("Connection reset")
+        return None
 
     # Stuck on local node
     if con_results == b'\r\n' or \
