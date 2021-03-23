@@ -78,12 +78,10 @@ else:
     tn.write("n".encode('ascii') + b"\r")
     tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
 print(f"Connected to {conf['telnet_ip']} - {node_to_crawl}")
-tn.write(b"bye\r")
 calls = []
 
 try:
-    output = tn.read_until(b'\n', timeout=20)
-    input(output)
+    output = tn.read_until(b'***', timeout=20)
     output = output.split(b"Nodes")[1].strip()
     output = output.split(b'***')[0]
     output = re.sub(b' +', b' ', output)
@@ -99,19 +97,20 @@ for row in output:
 nt = None
 try:
     tn.write(b'\n\n\n')
-    tn.read_until(b'\n')
+    tn.read_until(b'\n', timeout=10)
     tn.write(b'n t\r')
     tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
-    nt = tn.read_until(b'\n')
-    print(nt)
+    nt = tn.read_until(b'***', timeout=20)
     nt = nt.split(b"Nodes")[1].strip()
     nt = nt.split(b"***")[0]
     nt = re.sub(b' +', b' ', nt)
     nt = nt.split(b'\r\n')
+    input(f"NT: {nt}")
 except Exception as e:
     print(f"Error getting n t info: {e}")
     nt = None
 input(nt)
+tn.write(b"bye\r")
 
 def remove_dupes(call_list):
     "Returns list with one alias:call pair per node"
