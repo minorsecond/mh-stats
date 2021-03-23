@@ -5,7 +5,7 @@ import datetime
 import re
 
 from sqlalchemy.orm import sessionmaker
-
+from sqlalchemy.sql import expression
 from common import get_info, get_conf, telnet_connect, node_connect, \
     auto_node_selector
 from models.db import local_engine, Node, BadGeocode, CrawledNode
@@ -121,12 +121,12 @@ if nt:
         rtt = line_split[1]
         frames = line_split[2]
 
-        if line_split[4] == 'B':
+        if line_split[5] == 'B':
             bpq = True
-            hops = line_split[5]
+            hops = line_split[6]
         else:
             bpq = False
-            hops = line_split[4]
+            hops = line_split[5]
 
         nt_data[call_id_pair] = bpq
 
@@ -197,6 +197,7 @@ for node_name_pair in clean_call_list:
     lat = None
     grid = None
     ssid = None
+
     name_first_part = node_name_pair[0].decode('utf-8')
     first_base = re.sub(r'[^\w]', ' ', name_first_part.split('-')[0])
     node_name_string = name_first_part
@@ -241,6 +242,30 @@ for node_name_pair in clean_call_list:
                     last_check = now
                     order = 1
 
+                    # Get BPQ info
+                    bpq = session.query(Node.bpq).filter(
+                        Node.call == call_part.upper()).one_or_none()
+
+                    # query will return None if no rows, or (None,) if row
+                    # exists, but the bpq column is empty
+                    if isinstance(bpq, tuple):
+                        bpq = bpq[0]
+
+                    if len(node_name_pair) == 1:
+                        node_match_string = ':' + node_name_pair[0].decode(
+                            'utf-8')
+                    else:
+                        node_match_string = node_name_pair[0].decode(
+                            'utf-8') + \
+                                            ':' + node_name_pair[1].decode(
+                            'utf-8')
+
+                    if node_match_string in nt_data:
+                        bpq = nt_data.get(node_match_string)
+
+                    if bpq is None:
+                        bpq = expression.null()
+
                     node_part = None
                     if part == 0:
                         node_part = name_second_part
@@ -277,12 +302,14 @@ for node_name_pair in clean_call_list:
                         session.query(Node). \
                             filter(Node.call == call_part). \
                             update({Node.last_check: last_check,
-                                    Node.node_name: node_part},
+                                    Node.node_name: node_part,
+                                    Node.bpq: bpq},
                                    synchronize_session="fetch")
                     elif verbose:
                         print(f"Couldn't get info for {call_part}")
 
-                    if base_call not in first_order_nodes and base_call not in processed_calls:
+                    if base_call not in first_order_nodes and base_call \
+                            not in processed_calls:
                         if lon is not None and lat is not None:
 
                             new_node = Node(
@@ -294,7 +321,8 @@ for node_name_pair in clean_call_list:
                                 path=path,
                                 level=order,
                                 grid=grid,
-                                node_name=node_part
+                                node_name=node_part,
+                                bpq=bpq
                             )
 
                             session.add(new_node)
@@ -309,21 +337,27 @@ for node_name_pair in clean_call_list:
 
                         processed_calls.append(base_call)
 
-                    else:  # Update node that exists in node table
-                        if lon is not None and lat is not None:
-                            if verbose:
-                                print(f"Updating node {base_call}")
-                            session.query(Node). \
-                                filter(Node.call == base_call). \
-                                update(
-                                {Node.geom: f'SRID=4326;POINT({lon} {lat})',
-                                 Node.last_check: last_check,
-                                 Node.node_name: node_part},
-                                synchronize_session="fetch")
-                            break
-                        else:
-                            if verbose:
-                                print(f"Couldn't geocode {base_call}")
+                    elif lon is not None and lat is not None:
+                        if verbose:
+                            print(f"Updating node {base_call}")
+                        session.query(Node). \
+                            filter(Node.call == base_call). \
+                            update(
+                            {Node.geom: f'SRID=4326;POINT({lon} {lat})',
+                             Node.last_check: last_check,
+                             Node.node_name: node_part,
+                             Node.bpq: bpq},
+                            synchronize_session="fetch")
+                        break
+                    else:
+                        if verbose:
+                            print(f"Couldn't geocode {base_call}")
+                        session.query(Node). \
+                            filter(Node.call == base_call). \
+                            update(
+                            {Node.node_name: node_part,
+                             Node.bpq: bpq},
+                            synchronize_session="fetch")
 
                         processed_calls.append(base_call)
                 part += 1

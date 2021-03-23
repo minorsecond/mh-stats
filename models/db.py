@@ -3,6 +3,7 @@ from datetime import datetime
 from geoalchemy2 import *
 from sqlalchemy import Column, BigInteger, String, DateTime, \
     Integer, Boolean, create_engine, ForeignKey
+from sqlalchemy.sql import expression
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -120,6 +121,7 @@ class Node(Base):
     level = Column(Integer, nullable=False)
     grid = Column(String, nullable=False)
     node_name = Column(String, nullable=True)
+    bpq = Column(Boolean, nullable=True, default=expression.null())
 
 
 class Operator(Base):
