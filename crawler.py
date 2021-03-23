@@ -77,14 +77,13 @@ else:
     path = "KD5LPB-7"
     tn.write("n".encode('ascii') + b"\r")
     tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
-
 print(f"Connected to {conf['telnet_ip']} - {node_to_crawl}")
-
-calls = []
 tn.write(b"bye\r")
+calls = []
 
 try:
-    output = tn.read_until(b'***', timeout=20)
+    output = tn.read_until(b'\n', timeout=20)
+    input(output)
     output = output.split(b"Nodes")[1].strip()
     output = output.split(b'***')[0]
     output = re.sub(b' +', b' ', output)
@@ -96,6 +95,23 @@ except Exception as e:
 for row in output:
     calls.extend(row.split(b' '))
 
+# Get nodes with traffic to determine BPQ nodes
+nt = None
+try:
+    tn.write(b'\n\n\n')
+    tn.read_until(b'\n')
+    tn.write(b'n t\r')
+    tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+    nt = tn.read_until(b'\n')
+    print(nt)
+    nt = nt.split(b"Nodes")[1].strip()
+    nt = nt.split(b"***")[0]
+    nt = re.sub(b' +', b' ', nt)
+    nt = nt.split(b'\r\n')
+except Exception as e:
+    print(f"Error getting n t info: {e}")
+    nt = None
+input(nt)
 
 def remove_dupes(call_list):
     "Returns list with one alias:call pair per node"
