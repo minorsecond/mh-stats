@@ -729,7 +729,7 @@ for digipeater in digipeater_list.items():
 if verbose:
     print("Updating bands columns")
 case_statement = "UPDATE public.remote_mh SET band = CASE " \
-                 "WHEN (port LIKE '%44_.%' OR port LIKE '44_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '70CM' " \
+                 "WHEN (port LIKE '%4__.%' OR port LIKE '44_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '70CM' " \
                  "WHEN (port LIKE '%14_.%' OR port LIKE '14_.%') AND port NOT LIKE '% 14.%' AND port NOT LIKE '% 7.%' THEN '2M' " \
                  "WHEN (port LIKE '%22_.%' OR port LIKE '22_.%') THEN '1.25M' " \
                  "WHEN (port LIKE '% 14.%' OR port LIKE '14.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '% 7.%' THEN '20M' " \

@@ -242,7 +242,7 @@ for node_name_pair in clean_call_list:
                     last_check = now
                     order = 1
 
-                    # Get BPQ info
+                    # Get current BPQ info
                     bpq = session.query(Node.bpq).filter(
                         Node.call == call_part.upper()).one_or_none()
 
