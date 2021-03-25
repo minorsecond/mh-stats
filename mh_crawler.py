@@ -161,9 +161,9 @@ if not auto:
     menu_item = 1
     print("Select VHF/UHF port to scan MHeard on")
     for port in available_ports:
+        menu_item = int(re.search(r'\d+', port.decode('utf-8')).group())
         port = port.decode('utf-8').strip().lstrip(digits)
         print(f"{menu_item}: {port}")
-        menu_item += 1
 
     try:
         selected_port = int(input().strip())
