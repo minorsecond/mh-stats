@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import expression
 from common import get_info, get_conf, telnet_connect, node_connect, \
     auto_node_selector
+from common.string_cleaner import clean_calls
 from models.db import local_engine, Node, BadGeocode, CrawledNode
 
 Session = sessionmaker(bind=local_engine)
@@ -129,56 +130,6 @@ if nt:
             hops = line_split[5]
 
         nt_data[call_id_pair] = bpq
-
-
-def remove_dupes(call_list):
-    "Returns list with one alias:call pair per node"
-    a_list = []
-    b_list = []
-    res = []
-
-    for element in call_list:
-        if len(element) > 1:
-            a = element[0]
-            b = element[1]
-
-            a_base = re.sub(r'[^\w]', ' ', a.decode('utf-8').split('-')[0])
-            b_base = re.sub(r'[^\w]', ' ', b.decode('utf-8').split('-')[0])
-
-            if a_base not in a_list and a_base not in b_list and b_base \
-                    not in a_list and b_base not in b_list:
-                res.append([a, b])
-                a_list.append(a_base)
-                b_list.append(b_base)
-        else:
-            res.append(element)
-
-    return res
-
-
-def clean_calls(calls_to_clean):
-    """
-    Cleans output from telnet, removing : and whitespaces
-    """
-
-    cleaned_calls = []
-    for call in calls_to_clean:
-        if b':' in call:
-            call = call.split(b':')
-            while (b'' in call):
-                call.remove(b'')
-            cleaned_calls.append(call)
-
-        else:
-            cleaned_calls.append([None, call])
-
-    cleaned_calls = [[string for string in sublist if string] for sublist in
-                     cleaned_calls]
-    cleaned_calls = [e for e in cleaned_calls if e != []]
-    cleaned_calls = remove_dupes(cleaned_calls)
-
-    return cleaned_calls
-
 
 processed_node_names = []
 processed_calls = []

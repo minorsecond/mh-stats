@@ -12,6 +12,7 @@ from sqlalchemy.sql.expression import true
 
 from common import get_info, get_conf, telnet_connect, node_connect, \
     auto_node_selector
+from common.string_cleaner import strip_call
 from models.db import local_engine, CrawledNode, RemoteOperator, \
     RemoteDigipeater, \
     RemotelyHeardStation, BadGeocode
@@ -155,15 +156,20 @@ except IndexError:
     print(f"Possible corrupt data received: {available_ports_raw}")
     exit()
 
+
+node_name_map = {}
+for port in available_ports:
+    menu_item = int(re.search(r'\d+', port.decode('utf-8')).group())
+    port_name = port.decode('utf-8').strip().lstrip(digits)
+    node_name_map[menu_item] = port_name
+
 if not auto:
     # Give menu options on screen
     selected_port = None
     menu_item = 1
     print("Select VHF/UHF port to scan MHeard on")
-    for port in available_ports:
-        menu_item = int(re.search(r'\d+', port.decode('utf-8')).group())
-        port = port.decode('utf-8').strip().lstrip(digits)
-        print(f"{menu_item}: {port}")
+    for menu_item, port_name in node_name_map.items():
+        print(f"{menu_item}: {port_name}")
 
     try:
         selected_port = int(input().strip())
@@ -177,8 +183,8 @@ else:
     selected_port = node_to_crawl_info.get(node_to_crawl)[1]
 
 if selected_port:
-    port_name = available_ports[selected_port - 1].decode(
-        'utf-8').strip().lstrip(digits).strip()
+
+    port_name = node_name_map.get(selected_port)
 
     last_crawled_port_name = session.query(CrawledNode.port_name).filter(
         CrawledNode.port == selected_port,
@@ -373,19 +379,12 @@ mh_counter = 0
 new_ops_counter = 0
 bad_geocodes_counter = 0
 updated_ops_counter = 0
+
 for item in mh_list:
     time_diff = None
     info = None
-    # Call includes ssid, ie KD5LPB-7
-    call = item[0].strip().upper()
-    # Op_call is just the call, ie KD5LPB
-    op_call = re.sub(r'[^\w]', ' ', call.split('-')[0].strip())
 
-    # Get SSID of call if it exists
-    if '-' in call:
-        ssid = int(re.sub(r'[^\w]', ' ', call.split('-')[1]))
-    else:
-        ssid = None
+    call, op_call, ssid = strip_call(item[0])
 
     timestamp = item[1]
 
