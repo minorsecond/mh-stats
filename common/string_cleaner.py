@@ -33,8 +33,13 @@ def remove_dupes(call_list):
             a = element[0]
             b = element[1]
 
-            a_base = re.sub(r'[^\w]', ' ', a.decode('utf-8').split('-')[0])
-            b_base = re.sub(r'[^\w]', ' ', b.decode('utf-8').split('-')[0])
+            if isinstance(a, bytes):
+                a = a.decode('utf-8')
+                b = b.decode('utf-8')
+
+            # Get callsign base
+            a_base = re.sub(r'[^\w]', ' ', a.split('-')[0])
+            b_base = re.sub(r'[^\w]', ' ', b.split('-')[0])
 
             if a_base not in a_list and a_base not in b_list and b_base \
                     not in a_list and b_base not in b_list:
