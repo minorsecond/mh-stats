@@ -49,6 +49,11 @@ def get_info(callsign, method):
 
     if callsign:
         callsign = re.sub(r'[^\w]', ' ', callsign)
+        match = re.match(r'[A-Za-z0-9]*([a-zA-Z]+[0-9]+|[0-9]+[a-zA-Z]+)',
+                            callsign)
+
+        if match is None:
+            return None
 
         if method == "hamdb":
             req = f"http://api.hamdb.org/{callsign}/json/mh-stats"

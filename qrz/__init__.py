@@ -4,7 +4,7 @@
 import os
 import requests
 import xmltodict
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 
 
 class QRZerror(Exception):
@@ -22,7 +22,7 @@ class QRZMissingCredentials(Exception):
 class QRZ(object):
     def __init__(self, cfg=None):
         if cfg:
-            self._cfg = SafeConfigParser()
+            self._cfg = ConfigParser()
             self._cfg.read(cfg)
         else:
             self._cfg = None
