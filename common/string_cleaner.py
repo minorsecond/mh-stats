@@ -55,6 +55,10 @@ def remove_dupes(call_list):
 def clean_calls(calls_to_clean):
     """
     Cleans output from telnet, removing : and whitespaces
+    :param calls_to_clean: List of calls from Telnet. Each item looks like
+    b'LPBNOD:KD5LPB-7'
+    :return: A list of lists. Each list element looks like
+    ['LPBNOD', 'KD5LPB-7]
     """
 
     cleaned_calls = []
