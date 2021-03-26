@@ -34,12 +34,15 @@ def remove_dupes(call_list):
             b = element[1]
 
             if isinstance(a, bytes):
-                a = a.decode('utf-8')
-                b = b.decode('utf-8')
+                a_temp = a.decode('utf-8')
+                b_temp = b.decode('utf-8')
+            else:
+                a_temp = a
+                b_temp = b
 
             # Get callsign base
-            a_base = re.sub(r'[^\w]', ' ', a.split('-')[0])
-            b_base = re.sub(r'[^\w]', ' ', b.split('-')[0])
+            a_base = re.sub(r'[^\w]', ' ', a_temp.split('-')[0])
+            b_base = re.sub(r'[^\w]', ' ', b_temp.split('-')[0])
 
             if a_base not in a_list and a_base not in b_list and b_base \
                     not in a_list and b_base not in b_list:

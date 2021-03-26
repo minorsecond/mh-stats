@@ -160,7 +160,7 @@ except IndexError:
 node_name_map = {}
 for port in available_ports:
     menu_item = int(re.search(r'\d+', port.decode('utf-8')).group())
-    port_name = port.decode('utf-8').strip().lstrip(digits)
+    port_name = port.decode('utf-8').strip().lstrip(digits).strip()
     node_name_map[menu_item] = port_name
 
 if not auto:
@@ -184,7 +184,7 @@ else:
 
 if selected_port:
 
-    port_name = node_name_map.get(selected_port)
+    port_name = node_name_map.get(selected_port).strip()
 
     last_crawled_port_name = session.query(CrawledNode.port_name).filter(
         CrawledNode.port == selected_port,
