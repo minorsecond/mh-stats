@@ -14,6 +14,11 @@ con_string = f"postgresql://{conf['pg_user']}:{conf['pg_pw']}@" \
 remote_engine = create_engine(con_string)
 
 
+@app.route("/")
+def hello():
+    return "<h1 style='color:blue'>Hello There!</h1>"
+
+
 class RemoteMH(Resource):
     """
     Remote MHeard list API
