@@ -20,15 +20,59 @@ class RemoteMH(Resource):
     """
     def get(self):
         conn = remote_engine.connect()
-        query = conn.execute("SELECT parent_call, remote_call AS call, "
-                             "heard_time, ssid, band FROM remote_mh")
+        query = conn.execute("select parent_call, remote_call, heard_time,"
+                             " ssid, band "
+                             "from remote_mh "
+                             "order by heard_time desc")
 
         result = {'mheard': [i for i in query.cursor.fetchall()]}
         return jsonify(result)
 
 
-api.add_resource(RemoteMH, '/mheard')
+class RemoteOperators(Resource):
+    """
+    Remote operators API
+    """
+    def get(self):
+        conn = remote_engine.connect()
+        query = conn.execute("select parent_call, remote_call, lastheard, "
+                             "grid, (st_x(geom), st_y(geom)), bands "
+                             "from remote_operators "
+                             "order by lastheard desc")
+        result = {'remote_ops': [i for i in query.cursor.fetchall()]}
+        return jsonify(result)
 
+
+class RemoteDigipeaters(Resource):
+    """
+    Remote digipeaters API
+    """
+    def get(self):
+        conn = remote_engine.connect()
+        query = conn.execute("select call, lastheard, grid, ssid, (st_x(geom), "
+                             "st_y(geom)) from remote_digipeaters "
+                             "order by lastheard desc")
+        result = {'digipeaters': [i for i in query.cursor.fetchall()]}
+        return jsonify(result)
+
+
+class Nodes(Resource):
+    """
+    NET/ROM nodes API
+    """
+    def get(self):
+        conn = remote_engine.connect()
+        query = conn.execute("select call, grid, (st_x(geom), st_y(geom)) "
+                             "from nodes "
+                             "order by call asc")
+        result = {'nodes': [i for i in query.cursor.fetchall()]}
+        return jsonify(result)
+
+
+api.add_resource(RemoteMH, '/mheard')
+api.add_resource(RemoteOperators, '/remoteops')
+api.add_resource(RemoteDigipeaters, '/digipeaters')
+api.add_resource(Nodes, '/nodes')
 
 if __name__ == '__main__':
     app.run(port='5002')
