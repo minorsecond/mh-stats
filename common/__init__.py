@@ -28,6 +28,7 @@ def get_conf():
         'pg_user': config['postgres']['username'],
         'pg_pw': config['postgres']['password'],
         'pg_host': config['postgres']['host'],
+        'remote_pg_host': config['postgres']['remote_pg_host'],
         'pg_db': config['postgres']['db'],
         'pg_port': config['postgres']['port'],
         'info_method': config['mhcrawler']['info_method']
