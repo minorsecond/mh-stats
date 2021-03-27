@@ -3,8 +3,15 @@ from common import get_info
 
 
 def test_bad_callsign_lookup():
-    bad_results = get_info('SYDNEY', 'QRZ')
-    assert bad_results is None
+    bad_results_1 = get_info('SYDNEY', 'QRZ')
+    bad_results_2 = get_info('ROSE', 'QRZ')
+    bad_results_3 = get_info('SYDNEY', 'HAMDB')
+    bad_results_4 = get_info('ROSE', 'HAMDB')
+
+    assert bad_results_1 is None
+    assert bad_results_2 is None
+    assert bad_results_3 is None
+    assert bad_results_4 is None
 
 
 def test_good_callsign_lookup():

@@ -20,5 +20,5 @@ def test_clean_calls():
     input_node_names = [b'LPBNOD:KD5LPB-7', b'COSCO:KE0GB-7',
                         b'PHYLNS:W0ARP-7', b'SOLBPQ:N0HI-7']
     output_node_names = string_cleaner.clean_calls(input_node_names)
-    assert output_node_names == [['LPBNOD', 'KD5LPB-7'], ['COSCO', 'KE0GB-7'],
-                                 ['PHYLNS', 'W0ARP-7'], ['SOLBPQ', 'N0HI-7']]
+    assert output_node_names == [[b'LPBNOD', b'KD5LPB-7'], [b'COSCO', b'KE0GB-7'],
+                                 [b'PHYLNS', b'W0ARP-7'], [b'SOLBPQ', b'N0HI-7']]
