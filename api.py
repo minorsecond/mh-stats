@@ -41,7 +41,7 @@ def hello():
            "  </ul>" \
            "<li><a href='/api/operators'>Operator Data</a></li>" \
            "  <ul>" \
-           "    <li>Parent ID - The last station that heard the operator</li>" \
+           "    <li>Parent ID - The last node that heard the operator</li>" \
            "    <li>Call - The station call</li>" \
            "    <li>Last Heard - The last time the station was received in UTC timezone</li>" \
            "    <li>Grid - The station's Maidenhead grid square</li>" \
