@@ -22,9 +22,10 @@ def hello():
            "The Packet Radio Map data are available in JSON format and " \
            "consist of spatial & non-spatial components. Operators and " \
            "digipeaters come with spatial X (Longitude) and Y (Latitude) " \
-           "data, contained in a tuple (e.g. (x, y)). All timestamps are " \
-           "given in the format YYYY-MM-DD HH:MM:SS in the UTC timezone. " \
-           "Timestamps are 24-hour time." \
+           "data, contained in a tuple (e.g. (x, y)). The coordinate system " \
+           " (SRS) is EPSG:4326. All timestamps are given in the format " \
+           "YYYY-MM-DD HH:MM:SS in the UTC timezone.  Timestamps are " \
+           "24-hour time." \
            "<BR><BR>" \
            "The data are updated " \
            "once every half hour at a random time (when the nodes are " \
