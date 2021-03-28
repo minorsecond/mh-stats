@@ -32,7 +32,8 @@ def hello():
            "scanned)." \
            "<BR><BR>" \
            "The Denver area data are taken directly from my radio's MHeard " \
-           "list and are updated every 15 minutes." \
+           "list and are updated every 15 minutes. All Denver data is on 2m " \
+           "145.050 Mhz." \
            "<ul>" \
            "<li><a href='/api/mheard'>MHeard Data</a></li>" \
            "  <ul>" \
