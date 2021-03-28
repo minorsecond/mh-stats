@@ -24,7 +24,7 @@ def hello():
            "  <ul>" \
            "    <li>Parent Call - The station who received the transmission</li>" \
            "    <li>Call - The transmitting station</li>" \
-           "    <li>Heard Time - The time that the transmission was received</li>" \
+           "    <li>Heard Time - The time that the transmission was received in UTC timezone</li>" \
            "    <li>SSID - The SSID of the transmitting station, if any</li>" \
            "    <li>Band - The band the transmission was heard on</li>" \
            "  </ul>" \
@@ -32,7 +32,7 @@ def hello():
            "  <ul>" \
            "    <li>Parent Call - The last station that heard the operator</li>" \
            "    <li>Call - The station call</li>" \
-           "    <li>Last Heard - The last time the station was received</li>" \
+           "    <li>Last Heard - The last time the station was received in UTC timezone</li>" \
            "    <li>Grid - The station's Maidenhead grid square</li>" \
            "    <li>Coordinates - The X & Y coordinates of the station</li>" \
            "    <li>Bands - Bands that the station has been heard on</li>" \
@@ -40,7 +40,7 @@ def hello():
            "<li><a href='/api/digipeaters'>Digipeater Data</a></li>" \
            "  <ul>" \
            "    <li>Call - The digipeater callsign</li>" \
-           "    <li>Last Heard - The last time the digipeater was received</li>" \
+           "    <li>Last Heard - The last time the digipeater was received in UTC timezone</li>" \
            "    <li>Grid - The digipeater's Maidenhead grid square</li>" \
            "    <li>SSID - The digipeater's SSID</li>" \
            "    <li>Coordinates - The X & Y coordinates of the digiepater</li>" \
