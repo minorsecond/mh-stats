@@ -19,6 +19,16 @@ def hello():
     return "<h1 style='color:Black; text-align: center;'>" \
            "Packet Radio Map API</h1>" \
            "<BR>" \
+           "The Packet Radio Map data are available in JSON format and " \
+           "consist of spatial & non-spatial components. Operators and " \
+           "digipeaters come with spatial X (Longitude) and Y (Latitude) " \
+           "data, contained in a tuple (e.g. (x, y)). All timestamps are " \
+           "given in the format YYYY-MM-DD HH:MM:SS in the UTC timezone. " \
+           "Timestamps are 24-hour time." \
+           "<BR><BR>" \
+           "The data are updated " \
+           "once every half hour at a random time (when the nodes are " \
+           "scanned)." \
            "<ul>" \
            "<li><a href='/api/mheard'>MHeard Data</a></li>" \
            "  <ul>" \
