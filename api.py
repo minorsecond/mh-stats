@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 from flask_restful import Resource, Api
 from flask_jsonpify import jsonify
 from sqlalchemy import create_engine
@@ -14,9 +14,18 @@ con_string = f"postgresql://{conf['pg_user']}:{conf['pg_pw']}@" \
 remote_engine = create_engine(con_string)
 
 
-@app.route("/")
+@app.route("/api")
 def hello():
-    return "<h1 style='color:blue'>Hello There!</h1>"
+    return "<h1 style='color:Black; text-align: center;'>" \
+           "Packet Radio Map API</h1>" \
+           "<BR>" \
+           "<a href='/api/mheard'>MHeard Data</a>" \
+           "<BR>" \
+           "<a href='/api/remoteops'>Operator Data</a>" \
+           "<BR>" \
+           "<a href='/api/digipeaters'>Digipeater Data</a>" \
+           "<BR>" \
+           "<a href='/api/nodes'>Node Data</a>"
 
 
 class RemoteMH(Resource):
@@ -74,10 +83,10 @@ class Nodes(Resource):
         return jsonify(result)
 
 
-api.add_resource(RemoteMH, '/mheard')
-api.add_resource(RemoteOperators, '/remoteops')
-api.add_resource(RemoteDigipeaters, '/digipeaters')
-api.add_resource(Nodes, '/nodes')
+api.add_resource(RemoteMH, '/api/mheard')
+api.add_resource(RemoteOperators, '/api/remoteops')
+api.add_resource(RemoteDigipeaters, '/api/digipeaters')
+api.add_resource(Nodes, '/api/nodes')
 
 if __name__ == '__main__':
-    app.run(port='5002')
+    app.run()
