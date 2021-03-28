@@ -60,7 +60,9 @@ class RemoteMH(Resource):
     """
     def get(self):
         conn = remote_engine.connect()
-        query = conn.execute("select parent_call, remote_call, heard_time,"
+        query = conn.execute("select parent_call, remote_call, "
+                             "coalesce(to_char(heard_time, "
+                             "'YYYY-MM-DD HH24:MI:SS'), 'NULL'),"
                              " ssid, band "
                              "from remote_mh "
                              "order by heard_time desc")
@@ -75,7 +77,9 @@ class RemoteOperators(Resource):
     """
     def get(self):
         conn = remote_engine.connect()
-        query = conn.execute("select parent_call, remote_call, lastheard, "
+        query = conn.execute("select parent_call, remote_call, "
+                             "coalesce(to_char(lastheard, "
+                             "'YYYY-MM-DD HH24:MI:SS'), 'NULL'), "
                              "grid, (st_x(geom), st_y(geom)), bands "
                              "from remote_operators "
                              "order by lastheard desc")
@@ -89,7 +93,10 @@ class RemoteDigipeaters(Resource):
     """
     def get(self):
         conn = remote_engine.connect()
-        query = conn.execute("select call, lastheard, grid, ssid, (st_x(geom), "
+        query = conn.execute("select call, "
+                             "coalesce(to_char(lastheard, "
+                             "'YYYY-MM-DD HH24:MI:SS'), 'NULL'), grid, ssid, "
+                             "(st_x(geom), "
                              "st_y(geom)) from remote_digipeaters "
                              "order by lastheard desc")
         result = {'digipeaters': [i for i in query.cursor.fetchall()]}
