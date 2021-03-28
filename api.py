@@ -87,7 +87,8 @@ class RemoteMH(Resource):
     """
     def get(self):
         conn = remote_engine.connect()
-        query = conn.execute("select parent_call, split_part(remote_call, '-', 1), "
+        query = conn.execute("select parent_call, "
+                             "split_part(remote_call, '-', 1), "
                              "coalesce(to_char(heard_time, "
                              "'YYYY-MM-DD HH24:MI:SS'), 'NULL'),"
                              " ssid, band "

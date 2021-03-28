@@ -733,6 +733,7 @@ case_statement = "UPDATE public.remote_mh SET band = CASE " \
                  "WHEN (port LIKE '%22_.%' OR port LIKE '22_.%') THEN '1.25M' " \
                  "WHEN (port LIKE '% 14.%' OR port LIKE '14.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '% 7.%' THEN '20M' " \
                  "WHEN (port LIKE '% 7.%' OR port LIKE '7.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '%14.%%%' THEN '40M' " \
+                 "WHEN (port LIKE '% 3.%' OR port LIKE '3.%') AND port NOT LIKE '%14_.%' AND port NOT LIKE '%14.%%%' THEN '80M' " \
                  "END;"
 # engine.execute(text(case_statement)).execution_options(autocommit=True)
 session.execute(case_statement)
