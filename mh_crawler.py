@@ -757,7 +757,7 @@ for operator in all_operators:
         remote_call = mh_item.remote_call
         band = mh_item.band
 
-        if remote_call.split('-')[0] == call and band:
+        if re.sub('[\W_]+', '', remote_call.split('-')[0]) == call and band:
             if band not in operating_bands:
                 operating_bands += f"{band},"
 
