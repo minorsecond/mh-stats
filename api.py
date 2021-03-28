@@ -19,13 +19,39 @@ def hello():
     return "<h1 style='color:Black; text-align: center;'>" \
            "Packet Radio Map API</h1>" \
            "<BR>" \
-           "<a href='/api/mheard'>MHeard Data</a>" \
-           "<BR>" \
-           "<a href='/api/remoteops'>Operator Data</a>" \
-           "<BR>" \
-           "<a href='/api/digipeaters'>Digipeater Data</a>" \
-           "<BR>" \
-           "<a href='/api/nodes'>Node Data</a>"
+           "<ul>" \
+           "<li><a href='/api/mheard'>MHeard Data</a></li>" \
+           "  <ul>" \
+           "    <li>Parent Call - The station who received the transmission</li>" \
+           "    <li>Call - The transmitting station</li>" \
+           "    <li>Heard Time - The time that the transmission was received</li>" \
+           "    <li>SSID - The SSID of the transmitting station, if any</li>" \
+           "    <li>Band - The band the transmission was heard on</li>" \
+           "  </ul>" \
+           "<li><a href='/api/remoteops'>Operator Data</a></li>" \
+           "  <ul>" \
+           "    <li>Parent Call - The last station that heard the operator</li>" \
+           "    <li>Call - The station call</li>" \
+           "    <li>Last Heard - The last time the station was received</li>" \
+           "    <li>Grid - The station's Maidenhead grid square</li>" \
+           "    <li>Coordinates - The X & Y coordinates of the station</li>" \
+           "    <li>Bands - Bands that the station has been heard on</li>" \
+           "  </ul>" \
+           "<li><a href='/api/digipeaters'>Digipeater Data</a></li>" \
+           "  <ul>" \
+           "    <li>Call - The digipeater callsign</li>" \
+           "    <li>Last Heard - The last time the digipeater was received</li>" \
+           "    <li>Grid - The digipeater's Maidenhead grid square</li>" \
+           "    <li>SSID - The digipeater's SSID</li>" \
+           "    <li>Coordinates - The X & Y coordinates of the digiepater</li>" \
+           "  </ul>" \
+           "<li><a href='/api/nodes'>Node Data</a></li>" \
+           "  <ul>" \
+           "    <li>Call - The NET/ROM node callsign</li>" \
+           "    <li>Grid - The NET/ROM node Maidenhead grid square</li>" \
+           "    <li>Coordinates - The NET/ROM node X & Y coordinates</li>" \
+           "  </ul>" \
+           "</ul>"
 
 
 class RemoteMH(Resource):
