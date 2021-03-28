@@ -30,6 +30,9 @@ def hello():
            "The data are updated " \
            "once every half hour at a random time (when the nodes are " \
            "scanned)." \
+           "<BR><BR>" \
+           "The Denver area data are taken directly from my radio's MHeard " \
+           "list and are updated every 15 minutes." \
            "<ul>" \
            "<li><a href='/api/mheard'>MHeard Data</a></li>" \
            "  <ul>" \
@@ -62,6 +65,18 @@ def hello():
            "    <li>Grid - The NET/ROM node Maidenhead grid square</li>" \
            "    <li>Coordinates - The NET/ROM node X & Y coordinates</li>" \
            "  </ul>" \
+           "<li><a href='/api/denver_mheard'>Denver area MHeard list (RF)</a></li>" \
+           "  <ul>" \
+           "    <li>Call - The transmitting operator's callsign</li>" \
+           "    <li>SSID - The transmitting operator's SSID</li>" \
+           "    <li>Heard Time - The time that the transmission was received in UTC timezone</li>" \
+           "  </ul>" \
+           "<li><a href='/api/denver_operators'>Denver area operators (RF)</a></li>" \
+           "  <ul>" \
+           "    <li>Call - The operator's callsign</li>" \
+           "    <li>Last Heard - The last time the station was received in UTC timezone</li>" \
+           "    <li>Coordinates - The X & Y coordinates of the station</li>" \
+           "  </ul>" \
            "</ul>"
 
 
@@ -82,6 +97,22 @@ class RemoteMH(Resource):
         return jsonify(result)
 
 
+class DenverMH(Resource):
+    """
+    Denver area MHeard list API
+    """
+    def get(self):
+        conn = remote_engine.connect()
+        query = conn.execute("select op_call, ssid,"
+                             "coalesce(to_char(timestamp, "
+                             "'YYYY-MM-DD HH24:MI:SS'), 'NULL') "
+                             "from mh_list "
+                             "order by timestamp desc")
+
+        result = {'denver_mheard': [i for i in query.cursor.fetchall()]}
+        return jsonify(result)
+
+
 class RemoteOperators(Resource):
     """
     Remote operators API
@@ -93,6 +124,22 @@ class RemoteOperators(Resource):
                              "'YYYY-MM-DD HH24:MI:SS'), 'NULL'), "
                              "grid, (st_x(geom), st_y(geom)), bands "
                              "from remote_operators "
+                             "order by lastheard desc")
+        result = {'operators': [i for i in query.cursor.fetchall()]}
+        return jsonify(result)
+
+
+class DenverOperators(Resource):
+    """
+    Denver area operators API
+    """
+    def get(self):
+        conn = remote_engine.connect()
+        query = conn.execute("select call, "
+                             "coalesce(to_char(lastheard, "
+                             "'YYYY-MM-DD HH24:MI:SS'), 'NULL'), "
+                             "grid, (st_x(geom), st_y(geom)) "
+                             "from operators "
                              "order by lastheard desc")
         result = {'operators': [i for i in query.cursor.fetchall()]}
         return jsonify(result)
@@ -131,6 +178,8 @@ api.add_resource(RemoteMH, '/api/mheard')
 api.add_resource(RemoteOperators, '/api/operators')
 api.add_resource(RemoteDigipeaters, '/api/digipeaters')
 api.add_resource(Nodes, '/api/nodes')
+api.add_resource(DenverMH, '/api/denver_mheard')
+api.add_resource(DenverOperators, '/api/denver_operators')
 
 if __name__ == '__main__':
     app.run()
