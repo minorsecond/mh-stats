@@ -33,15 +33,15 @@ def hello():
            "<ul>" \
            "<li><a href='/api/mheard'>MHeard Data</a></li>" \
            "  <ul>" \
-           "    <li>Parent Call - The station who received the transmission</li>" \
+           "    <li>Parent ID - The node that received the transmission</li>" \
            "    <li>Call - The transmitting station</li>" \
            "    <li>Heard Time - The time that the transmission was received in UTC timezone</li>" \
            "    <li>SSID - The SSID of the transmitting station, if any</li>" \
            "    <li>Band - The band the transmission was heard on</li>" \
            "  </ul>" \
-           "<li><a href='/api/remoteops'>Operator Data</a></li>" \
+           "<li><a href='/api/operators'>Operator Data</a></li>" \
            "  <ul>" \
-           "    <li>Parent Call - The last station that heard the operator</li>" \
+           "    <li>Parent ID - The last station that heard the operator</li>" \
            "    <li>Call - The station call</li>" \
            "    <li>Last Heard - The last time the station was received in UTC timezone</li>" \
            "    <li>Grid - The station's Maidenhead grid square</li>" \
@@ -128,7 +128,7 @@ class Nodes(Resource):
 
 
 api.add_resource(RemoteMH, '/api/mheard')
-api.add_resource(RemoteOperators, '/api/remoteops')
+api.add_resource(RemoteOperators, '/api/operators')
 api.add_resource(RemoteDigipeaters, '/api/digipeaters')
 api.add_resource(Nodes, '/api/nodes')
 
