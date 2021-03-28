@@ -53,7 +53,7 @@ class RemoteOperators(Resource):
                              "grid, (st_x(geom), st_y(geom)), bands "
                              "from remote_operators "
                              "order by lastheard desc")
-        result = {'remote_ops': [i for i in query.cursor.fetchall()]}
+        result = {'operators': [i for i in query.cursor.fetchall()]}
         return jsonify(result)
 
 
