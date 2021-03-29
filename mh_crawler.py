@@ -264,7 +264,7 @@ mh_list = []
 for item in mh_output:
     if len(item) > 1:
         res = []
-        call = item[0].decode('utf-8')
+        call = item[0].decode('utf-8').strip()
         res.append(call)
         time_passed = item[1].decode('utf-8')
 
@@ -389,6 +389,7 @@ for item in mh_list:
     info = None
 
     call, op_call, ssid = strip_call(item[0])
+    input(op_call)
 
     timestamp = item[1]
 
