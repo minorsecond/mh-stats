@@ -333,6 +333,10 @@ elif not auto:  # Write new node
     if crawled_nodes:
         nodes_to_crawl_id = crawled_nodes.id
 
+        session.query(CrawledNode).filter(
+            CrawledNode.id == nodes_to_crawl_id).update(
+            {CrawledNode.last_crawled: now}, synchronize_session="fetch")
+
         # Populate needs check field if null
         session.query(CrawledNode).filter(CrawledNode.id == nodes_to_crawl_id,
                                           CrawledNode.needs_check.is_(None)). \
