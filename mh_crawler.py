@@ -389,7 +389,6 @@ for item in mh_list:
     info = None
 
     call, op_call, ssid = strip_call(item[0])
-    input(op_call)
 
     timestamp = item[1]
 
