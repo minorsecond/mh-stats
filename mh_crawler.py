@@ -7,6 +7,7 @@ from string import digits
 
 from geoalchemy2.shape import to_shape
 from sqlalchemy import or_
+from sqlalchemy.orm.exc import MultipleResultsFound
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql.expression import true
 
@@ -186,11 +187,16 @@ if selected_port:
 
     port_name = node_name_map.get(selected_port).strip()
 
-    last_crawled_port_name = session.query(CrawledNode.port_name).filter(
-        CrawledNode.port == selected_port,
-        CrawledNode.node_id == node_to_crawl,
-        CrawledNode.active_port == true()
-    ).one_or_none()
+    try:
+        last_crawled_port_name = session.query(CrawledNode.port_name).filter(
+            CrawledNode.port == selected_port,
+            CrawledNode.node_id == node_to_crawl,
+            CrawledNode.active_port == true()
+        ).one_or_none()
+    except MultipleResultsFound:
+        print(f"Multiple results for node ID {node_to_crawl}, "
+              f"port: {selected_port} in crawled_nodes table. Check for dupes, "
+              f"and set one of them to inactive, if necessary.")
 
     if last_crawled_port_name:
         last_crawled_port_name = last_crawled_port_name[0]
