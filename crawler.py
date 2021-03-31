@@ -25,7 +25,7 @@ verbose = args.v
 auto = args.auto
 conf = get_conf()
 info_method = conf['info_method']
-refresh_days = 7
+refresh_days = -1
 
 node_to_crawl_info = None
 if auto and node_to_crawl:
@@ -299,6 +299,7 @@ for node_name_pair in clean_call_list:
                              Node.node_name: node_part,
                              Node.bpq: bpq},
                             synchronize_session="fetch")
+                        updated_counter += 1
                         break
                     else:
                         if verbose:
