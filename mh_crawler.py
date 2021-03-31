@@ -197,6 +197,7 @@ if selected_port:
         print(f"Multiple results for node ID {node_to_crawl}, "
               f"port: {selected_port} in crawled_nodes table. Check for dupes, "
               f"and set one of them to inactive, if necessary.")
+        exit()
 
     if last_crawled_port_name:
         last_crawled_port_name = last_crawled_port_name[0]
