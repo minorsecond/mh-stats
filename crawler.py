@@ -25,7 +25,7 @@ verbose = args.v
 auto = args.auto
 conf = get_conf()
 info_method = conf['info_method']
-refresh_days = -1
+refresh_days = 7
 
 node_to_crawl_info = None
 if auto and node_to_crawl:
