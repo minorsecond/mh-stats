@@ -4,6 +4,7 @@
 import argparse
 import datetime
 import re
+import time
 
 from sqlalchemy import func, desc
 from sqlalchemy.orm import sessionmaker
@@ -36,7 +37,9 @@ print(f"\n==============================================\n"
 
 tn = telnet_connect()
 tn.write("mhu 1".encode('ascii') + b"\r")
+time.sleep(1)
 tn.write(b"\r")
+time.sleep(1)
 tn.write(b"bye\r")
 
 print(f"Connected to {conf['telnet_ip']}")
@@ -47,10 +50,13 @@ output = output.split(b'***')[0]
 output = re.sub(b' +', b' ', output)
 output = output.split(b'\r\n')
 
-index = 0
-for item in output:
-    output[index] = item.strip().split(b' ')
-    index += 1
+lines = output[0].split(b'\r')
+output = []
+
+for item in lines:
+    substring = item.strip().split(b'\n')[0]
+    sublist = substring.split()
+    output.append(sublist)
 
 # Clean up list
 for index, item in enumerate(output):
