@@ -94,42 +94,7 @@ except Exception as e:
 for row in output:
     calls.extend(row.split(b' '))
 
-# Get nodes with traffic to determine BPQ nodes
-nt = None
-try:
-    tn.write(b'\n\n\n')
-    tn.read_until(b'\n', timeout=10)
-    tn.write(b'n t\r')
-    tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
-    nt = tn.read_until(b'***', timeout=20)
-    nt = nt.split(b"Nodes")[1].strip()
-    nt = nt.split(b"***")[0]
-    nt = re.sub(b' +', b' ', nt)
-    nt = nt.split(b'\r\n')
-
-except Exception as e:
-    print(f"Error getting n t info: {e}")
-    nt = None
-
 tn.write(b"bye\r")
-
-nt_data = {}
-if nt:
-    for line in nt:
-        line = line.decode('utf-8')
-        line_split = line.split(' ')
-        call_id_pair = line_split[0]
-        rtt = line_split[1]
-        frames = line_split[2]
-
-        if line_split[5] == 'B':
-            bpq = True
-            hops = line_split[6]
-        else:
-            bpq = False
-            hops = line_split[5]
-
-        nt_data[call_id_pair] = bpq
 
 processed_node_names = []
 processed_calls = []
@@ -193,15 +158,6 @@ for node_name_pair in clean_call_list:
                     last_check = now
                     order = 1
 
-                    # Get current BPQ info
-                    bpq = session.query(Node.bpq).filter(
-                        Node.call == call_part.upper()).one_or_none()
-
-                    # query will return None if no rows, or (None,) if row
-                    # exists, but the bpq column is empty
-                    if isinstance(bpq, tuple):
-                        bpq = bpq[0]
-
                     if len(node_name_pair) == 1:
                         node_match_string = ':' + node_name_pair[0].decode(
                             'utf-8')
@@ -210,12 +166,6 @@ for node_name_pair in clean_call_list:
                             'utf-8') + \
                                             ':' + node_name_pair[1].decode(
                             'utf-8')
-
-                    if node_match_string in nt_data:
-                        bpq = nt_data.get(node_match_string)
-
-                    if bpq is None:
-                        bpq = expression.null()
 
                     node_part = None
                     if part == 0:
@@ -253,8 +203,7 @@ for node_name_pair in clean_call_list:
                         session.query(Node). \
                             filter(Node.call == call_part). \
                             update({Node.last_check: last_check,
-                                    Node.node_name: node_part,
-                                    Node.bpq: bpq},
+                                    Node.node_name: node_part},
                                    synchronize_session="fetch")
                     elif verbose:
                         print(f"Couldn't get info for {call_part}")
@@ -272,8 +221,7 @@ for node_name_pair in clean_call_list:
                                 path=path,
                                 level=order,
                                 grid=grid,
-                                node_name=node_part,
-                                bpq=bpq
+                                node_name=node_part
                             )
 
                             session.add(new_node)
@@ -296,8 +244,7 @@ for node_name_pair in clean_call_list:
                             update(
                             {Node.geom: f'SRID=4326;POINT({lon} {lat})',
                              Node.last_check: last_check,
-                             Node.node_name: node_part,
-                             Node.bpq: bpq},
+                             Node.node_name: node_part},
                             synchronize_session="fetch")
                         updated_counter += 1
                         break
@@ -307,8 +254,7 @@ for node_name_pair in clean_call_list:
                         session.query(Node). \
                             filter(Node.call == base_call). \
                             update(
-                            {Node.node_name: node_part,
-                             Node.bpq: bpq},
+                            {Node.node_name: node_part},
                             synchronize_session="fetch")
 
                         processed_calls.append(base_call)
