@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import re
+import time
 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import expression
@@ -20,7 +21,7 @@ parser.add_argument('-v', action='store_true', help='Verbose log')
 parser.add_argument('-auto', action='store_true',
                     help="Pick a node to crawl automatically")
 args = parser.parse_args()
-node_to_crawl = args.node
+node_to_crawl = "GMNOD" #args.node
 verbose = args.v
 auto = args.auto
 conf = get_conf()
@@ -63,6 +64,44 @@ for bad_call in bad_geocode_results:
 # Connect to local telnet server
 tn = telnet_connect()
 
+def wait_for_response():
+    # Send a "?" to trigger the response
+    tn.write(b"?\r")
+
+    response = ""
+    timeout = 20  # Adjust the initial timeout as needed
+    no_text_timeout = 5  # Adjust the duration to wait for no more text
+    start_time = time.time()
+
+    while True:
+        # Read the immediate response (non-blocking)
+        immediate_response = tn.read_very_eager().decode('utf-8')
+
+        # Append the immediate response to the complete response
+        response += immediate_response
+
+        # Check if "Nodes" is present in the immediate response
+        if "Nodes" in immediate_response:
+            break
+
+        # Check if the immediate_response is empty
+        if not immediate_response:
+            # If there is no text, wait for a duration to ensure it's not a temporary pause
+            time.sleep(no_text_timeout)
+
+            # Check again for text after the pause
+            immediate_response = tn.read_very_eager().decode('utf-8')
+
+            # If still no text, break the loop
+            if not immediate_response:
+                break
+
+        # Check if the timeout has been reached
+        if time.time() - start_time >= timeout:
+            break
+
+    return response
+
 if auto:
     # Get node to crawl from dict
     node_to_crawl = list(node_to_crawl_info.keys())[0]
@@ -70,29 +109,27 @@ if auto:
 
 if node_to_crawl:  # Connect to remote
     tn = node_connect(node_to_crawl, tn)
-    tn.write("n".encode('ascii') + b'\r')
-    tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+    wait_for_response()
+    tn.write("nodes".encode('ascii') + b'\r\n')
+    time.sleep(3)
+    #tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
     path = node_to_crawl
 
 else:
     path = "KD5LPB-7"
     tn.write("n".encode('ascii') + b"\r")
     tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+    print("3 loop")
 print(f"Connected to {conf['telnet_ip']} - {node_to_crawl}")
 calls = []
 
 try:
-    output = tn.read_until(b'***', timeout=20)
-    output = output.split(b"Nodes")[1].strip()
-    output = output.split(b'***')[0]
-    output = re.sub(b' +', b' ', output)
-    output = output.split(b'\r\n')
+    #output = tn.read_until(b'', timeout=20)
+    output = wait_for_response()
+    calls = re.findall(r'\w+-\d+', output)
 except Exception as e:
     print(f"Error parsing output: {e}")
     exit()
-
-for row in output:
-    calls.extend(row.split(b' '))
 
 tn.write(b"bye\r")
 
@@ -114,12 +151,12 @@ for node_name_pair in clean_call_list:
     grid = None
     ssid = None
 
-    name_first_part = node_name_pair[0].decode('utf-8')
+    name_first_part = node_name_pair[0]
     first_base = re.sub(r'[^\w]', ' ', name_first_part.split('-')[0])
     node_name_string = name_first_part
 
     if len(node_name_pair) == 2:
-        name_second_part = node_name_pair[1].decode('utf-8')
+        name_second_part = node_name_pair[1]
         second_base = re.sub(r'[^\w]', ' ', name_second_part.split('-')[0])
         node_name_string += f':{name_second_part}'
     else:
@@ -159,13 +196,9 @@ for node_name_pair in clean_call_list:
                     order = 1
 
                     if len(node_name_pair) == 1:
-                        node_match_string = ':' + node_name_pair[0].decode(
-                            'utf-8')
+                        node_match_string = ':' + node_name_pair[0]
                     else:
-                        node_match_string = node_name_pair[0].decode(
-                            'utf-8') + \
-                                            ':' + node_name_pair[1].decode(
-                            'utf-8')
+                        node_match_string = node_name_pair[0] + ':' + node_name_pair[1]
 
                     node_part = None
                     if part == 0:

@@ -66,8 +66,8 @@ def clean_calls(calls_to_clean):
 
     cleaned_calls = []
     for call in calls_to_clean:
-        if b':' in call:
-            call = call.split(b':')
+        if ':' in call:
+            call = call.split(':')
             while (b'' in call):
                 call.remove(b'')
             cleaned_calls.append(call)

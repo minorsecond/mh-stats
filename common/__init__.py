@@ -1,6 +1,8 @@
 import configparser
 import datetime
 import re
+import sys
+from time import sleep
 from telnetlib import Telnet
 
 import requests
@@ -47,6 +49,8 @@ def get_info(callsign, method):
     lat = None
     lon = None
     grid = None
+    max_retries = 3
+    retry_delay = 5
 
     if callsign:
         callsign = re.sub(r'[^\w]', ' ', callsign)
@@ -58,7 +62,18 @@ def get_info(callsign, method):
 
         if method == "hamdb":
             req = f"http://api.hamdb.org/{callsign}/json/mh-stats"
-            http_results = requests.get(req).json()
+            http_results = None
+            for attempt in range(max_retries):
+                try:
+                    http_results = requests.get(req).json()
+                    break  # If the request is successful, exit the loop
+                except Exception as e:
+                    print(f"Attempt {attempt + 1} failed: {e}")
+                    if attempt < max_retries - 1:
+                        print(f"Retrying in {retry_delay} seconds...")
+                        sleep(retry_delay)
+                    else:
+                        return None
 
             lat = http_results['hamdb']['callsign']['lat']
             lon = http_results['hamdb']['callsign']['lon']
@@ -124,8 +139,9 @@ def node_connect(node_name, tn):
         exit()
     else:
         print(f"Connected to {node_name}")
-        tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
-        tn.read_until(b"\n", timeout=20)
+        #tn.write(b'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+        #tn.read_until(b"\n", timeout=20)
+        sleep(3)
         return tn
 
 
